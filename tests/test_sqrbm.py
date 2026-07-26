@@ -3,8 +3,8 @@
 import numpy as np
 
 import qbm
-from qbm.losses import MarginalRelativeEntropy, RelativeEntropy, SqRBMNLL
 from qbm.linalg import partial_trace_hidden
+from qbm.losses import MarginalRelativeEntropy, RelativeEntropy, SqRBMNLL
 from qbm.operators import ParamHamiltonian, local_pauli_generators
 
 
@@ -33,7 +33,8 @@ def test_sqrbm_nll_gradient_finite_diff():
     model = qbm.SemiQuantumRBM(n_visible=3, n_hidden=2)
     theta = rng.normal(scale=0.4, size=model.n_params)
     model.theta = theta.copy()
-    q = rng.random(8); q /= q.sum()
+    q = rng.random(8)
+    q /= q.sum()
     loss = SqRBMNLL(q)
 
     analytic = loss.grad(model.state())
@@ -42,7 +43,8 @@ def test_sqrbm_nll_gradient_finite_diff():
     fd = np.zeros_like(theta)
     for j in range(len(theta)):
         for sign in (+1, -1):
-            t = theta.copy(); t[j] += sign * eps
+            t = theta.copy()
+            t[j] += sign * eps
             m = qbm.SemiQuantumRBM(n_visible=3, n_hidden=2, theta=t)
             fd[j] += sign * loss.value(m.state())
         fd[j] /= 2 * eps
@@ -65,10 +67,13 @@ def _fd_grad(loss, ham, theta, eps=1e-6):
     backend = qbm.DenseBackend()
     g = np.zeros_like(theta)
     for j in range(len(theta)):
-        tp = theta.copy(); tp[j] += eps
-        tm = theta.copy(); tm[j] -= eps
-        g[j] = (loss.value(backend.thermal_state(ham, tp))
-                - loss.value(backend.thermal_state(ham, tm))) / (2 * eps)
+        tp = theta.copy()
+        tp[j] += eps
+        tm = theta.copy()
+        tm[j] -= eps
+        g[j] = (
+            loss.value(backend.thermal_state(ham, tp)) - loss.value(backend.thermal_state(ham, tm))
+        ) / (2 * eps)
     return g
 
 

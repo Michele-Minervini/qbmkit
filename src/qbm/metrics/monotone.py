@@ -35,22 +35,30 @@ _ALIASES = {
 }
 
 _DEGENERATE_TOL = 1e-12
+# Boltzmann factors underflow to 0 below ~exp(-745); floor them so the metric weights
+# stay finite (1/_POP_FLOOR is representable in float64).
+_POP_FLOOR = 1e-300
 
 
 def canonical_metric_name(kind: str) -> str:
     key = kind.lower().replace("-", "_").replace(" ", "_")
     if key not in _ALIASES:
         raise ValueError(
-            f"unknown metric {kind!r}; choose from "
-            "fisher_bures, kubo_mori, wigner_yanase"
+            f"unknown metric {kind!r}; choose from fisher_bures, kubo_mori, wigner_yanase"
         )
     return _ALIASES[key]
 
 
 def mc_weight(p: np.ndarray, kind: str) -> np.ndarray:
-    """Weight matrix ``W[k, l]`` for the requested monotone metric."""
+    """Weight matrix ``W[k, l]`` for the requested monotone metric.
+
+    Populations are floored at a tiny positive value: at very low temperature the
+    Boltzmann factors underflow to exactly zero, which would make the weights
+    ``1/0 -> inf`` and poison the metric with NaNs.  The corresponding state
+    derivatives vanish there too, so the floored entries contribute nothing.
+    """
     name = canonical_metric_name(kind)
-    p = np.asarray(p, dtype=float)
+    p = np.clip(np.asarray(p, dtype=float), _POP_FLOOR, None)
     x = p[:, None]
     y = p[None, :]
     if name == "fisher_bures":

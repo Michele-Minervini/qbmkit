@@ -40,6 +40,6 @@ def entanglement_entropy(psi: np.ndarray, dim: int) -> float:
     """System-ancilla entanglement entropy of the TFD = thermal entropy ``S(rho)``."""
     Psi = psi.reshape(dim, dim)
     s = np.linalg.svd(Psi, compute_uv=False)
-    p = s ** 2
+    p = s**2
     p = p[p > 1e-300]
     return float(-np.sum(p * np.log(p)))

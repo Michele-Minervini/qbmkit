@@ -85,7 +85,11 @@ def test_training_through_statevector_backend():
     q = qbm.datasets.parity(n=3)
     model = qbm.FullyVisibleQBM(n=3, backend="statevector")
     model.theta = np.random.default_rng(0).normal(scale=0.05, size=model.n_params)
-    hist = qbm.fit(model, qbm.losses.RelativeEntropy(np.diag(q.astype(complex))),
-                   qbm.optim.Adam(lr=0.1), steps=150)
+    hist = qbm.fit(
+        model,
+        qbm.losses.RelativeEntropy(np.diag(q.astype(complex))),
+        qbm.optim.Adam(lr=0.1),
+        steps=150,
+    )
     assert hist.final_loss < hist.loss[0]
     assert isinstance(model.backend, qbm.StatevectorBackend)

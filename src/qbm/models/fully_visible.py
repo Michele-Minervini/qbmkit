@@ -8,8 +8,6 @@ not commute.
 
 from __future__ import annotations
 
-import numpy as np
-
 from ..operators import ParamHamiltonian, local_pauli_generators
 from .base import Model
 

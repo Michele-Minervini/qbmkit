@@ -71,6 +71,27 @@ def local_pauli_generators(
     return gens
 
 
+def pauli_pool(n: int, locality: int = 2, paulis=("X", "Y", "Z")) -> list[str]:
+    """All Pauli strings on ``n`` qubits acting non-trivially on at most ``locality`` sites.
+
+    This is the natural *complete* generator set for learning generic quantum states:
+    with ``locality = 2`` any 2-local Hamiltonian (Heisenberg, TFIM, ...) lies in the
+    span, so its Gibbs state is exactly representable.  The count grows as
+    ``sum_k C(n,k) * |paulis|^k`` -- use a small locality for larger ``n``.
+    """
+    import itertools
+
+    gens: list[str] = []
+    for k in range(1, locality + 1):
+        for sites in itertools.combinations(range(n), k):
+            for ops in itertools.product(paulis, repeat=k):
+                lbl = ["I"] * n
+                for s, o in zip(sites, ops):
+                    lbl[s] = o
+                gens.append("".join(lbl))
+    return gens
+
+
 def rbm_generators(n_visible: int, n_hidden: int, hidden_paulis=("Z", "X")) -> list[str]:
     """Generator set for a (semi-quantum) restricted Boltzmann machine.
 
@@ -102,7 +123,7 @@ def rbm_generators(n_visible: int, n_hidden: int, hidden_paulis=("Z", "X")) -> l
 
 
 class ParamHamiltonian:
-    """``G(theta) = sum_j theta_j G_j`` over fixed Hermitian generators.
+    """``G(theta) = offset + sum_j theta_j G_j`` over fixed Hermitian generators.
 
     Parameters
     ----------
@@ -110,9 +131,14 @@ class ParamHamiltonian:
         Pauli-string labels or dense Hermitian matrices.
     labels : list of str, optional
         Names for matrix generators (Pauli labels are kept automatically).
+    offset : ndarray, optional
+        A fixed (non-trainable) Hermitian term added to ``G``.  Since
+        ``dG/dtheta_j = G_j`` is unaffected by it, every gradient and metric in the
+        library works unchanged; it exists for models with fixed bias terms and for
+        the SDP dual (where the objective matrix sits in the exponent).
     """
 
-    def __init__(self, generators, labels=None, n_qubits=None):
+    def __init__(self, generators, labels=None, n_qubits=None, offset=None):
         mats: list[np.ndarray] = []
         lbls: list[str] = []
         for i, g in enumerate(generators):
@@ -132,17 +158,24 @@ class ParamHamiltonian:
         self.labels = lbls
         self.dim = dim
         self.n_qubits = n_qubits if n_qubits is not None else int(round(np.log2(dim)))
+        if offset is not None:
+            offset = np.asarray(offset, dtype=complex)
+            if offset.shape != (dim, dim):
+                raise ValueError("offset must match the generator dimension")
+        self.offset = offset
 
     @property
     def n_params(self) -> int:
         return len(self.generators)
 
     def matrix(self, theta) -> np.ndarray:
-        """Return the dense Hermitian matrix ``sum_j theta_j G_j``."""
+        """Return the dense Hermitian matrix ``offset + sum_j theta_j G_j``."""
         theta = np.asarray(theta, dtype=float)
         if theta.shape != (self.n_params,):
             raise ValueError(f"theta must have shape ({self.n_params},)")
         G = np.zeros((self.dim, self.dim), dtype=complex)
+        if self.offset is not None:
+            G += self.offset
         for t, g in zip(theta, self.generators):
             if t != 0.0:
                 G += t * g

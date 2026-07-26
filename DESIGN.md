@@ -204,6 +204,31 @@ gradients/metrics match across backends on small systems.
 
 ## 6. Public API
 
+### Task layer — one call per research question
+
+Every task is a thin recipe over the same core and returns a `Result`
+(`.model`, `.history`, `.report()`, plus task-specific fields):
+
+```python
+qbm.learn(data)                  # generative modelling      -> .kl, .history
+qbm.ground_state(H)              # ground-state energy       -> .energy, .exact_energy, .error
+qbm.learn_state(sigma)           # quantum-state learning    -> .relative_entropy
+qbm.free_energy_min(H, T)        # free energy / Gibbs prep  -> .free_energy, .error
+qbm.solve_sdp(C, A, b)           # semidefinite programming  -> .X, .objective, .y
+```
+
+Everything is registry-addressable, so components are plugins, not forks:
+
+```python
+qbm.available()                       # {'model': [...], 'loss': [...], ...}
+qbm.build("optimizer", "adam", lr=0.1)
+
+@qbm.register("loss", "my_loss")
+class MyLoss(qbm.losses.Loss): ...
+```
+
+### Explicit API
+
 ```python
 import qbm
 
@@ -304,10 +329,20 @@ is an exact oracle, enabling regression tests that gate every change:
     validating** the belief-propagation gradient and all three QFI formulas via
     automatic differentiation. Cross-backend agreement is in the test suite; two
     teaching notebooks (07, 08).
-- **v0.6+ (next)** — tensor-network backend (quimb) for scalable structured
+- **v0.6 (done)** — the **task layer** (`qbm.ground_state`, `learn_state`,
+  `free_energy_min`, `solve_sdp` alongside `learn`), each returning a `Result`;
+  **SDP solving** through entropy-regularised duality (`losses/sdp.py`), where the
+  dual's stationary point *is* a QBM thermal state and natural gradient with
+  `lr = beta` is exactly Newton's method; `ParamHamiltonian.offset`;
+  `operators.pauli_pool` (complete k-local generator sets); the **registry wired to
+  every built-in** (`qbm.register` / `build` / `available`); CI on Python 3.9–3.13
+  with lint, format and notebook-execution gates; `CONTRIBUTING.md`, `CITATION.cff`,
+  pre-commit and issue templates.
+- **v0.7+ (next)** — tensor-network backend (quimb) for scalable structured
   systems; circuit/hardware backend (PennyLane/Qiskit) with VarQITE/QITE Gibbs
   preparation and circuit-form belief-propagation / Hadamard-test estimators;
-  Petz–Tsallis loss and an SDP task adapter.
+  sample-based training (CD-k, QBGE); Petz–Tsallis loss; metrology / Cramér–Rao
+  module; paper-reproduction suite and scaling benchmarks; docs site and PyPI.
 
 **Design note (the unification, validated through v0.4).** Every model exposes a
 small generic interface — `density_matrix()`, `expect(O)`, `observable_gradient(O)`,

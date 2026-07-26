@@ -19,7 +19,7 @@ import numpy as np  # noqa: E402
 from .backends.jax_backend import gibbs_density_matrix  # noqa: E402
 
 
-def value_and_grad(generators, theta, value_fn):
+def value_and_grad(generators, theta, value_fn, offset=None):
     """Differentiate ``value_fn(rho(theta))`` w.r.t. ``theta`` via autodiff.
 
     Parameters
@@ -30,6 +30,8 @@ def value_and_grad(generators, theta, value_fn):
         Parameter vector.
     value_fn : callable(rho_jax) -> real scalar
         The loss value as a JAX-traceable function of the density matrix.
+    offset : ndarray, optional
+        Fixed term added to ``G`` (``ParamHamiltonian.offset``).
 
     Returns
     -------
@@ -38,14 +40,15 @@ def value_and_grad(generators, theta, value_fn):
     """
     Gs = jnp.asarray(np.stack([np.asarray(g, dtype=complex) for g in generators]))
     theta_j = jnp.asarray(np.asarray(theta, dtype=float))
+    off = None if offset is None else jnp.asarray(np.asarray(offset, dtype=complex))
 
     def f(th):
-        return value_fn(gibbs_density_matrix(th, Gs))
+        return value_fn(gibbs_density_matrix(th, Gs, off))
 
     v, g = jax.value_and_grad(f)(theta_j)
     return float(v), np.asarray(g)
 
 
-def grad(generators, theta, value_fn):
+def grad(generators, theta, value_fn, offset=None):
     """Gradient only (see :func:`value_and_grad`)."""
-    return value_and_grad(generators, theta, value_fn)[1]
+    return value_and_grad(generators, theta, value_fn, offset=offset)[1]

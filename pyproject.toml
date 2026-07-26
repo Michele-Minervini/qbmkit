@@ -47,3 +47,16 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+    # `O` (observable), `I` (identity) and `l` (index) are standard notation in
+    # quantum physics; renaming them would make the code harder to read, not easier.
+    "E741",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# compact `tp = theta.copy(); tp[j] += eps` pairs in finite-difference helpers
+"tests/*" = ["E702"]

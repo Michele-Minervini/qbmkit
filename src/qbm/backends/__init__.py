@@ -40,6 +40,7 @@ def get_backend(backend=None, **kwargs):
             return _REGISTRY[backend](**kwargs)
         if backend == "jax":
             from .jax_backend import JaxBackend
+
             return JaxBackend(**kwargs)
         avail = ", ".join(available_backends())
         raise KeyError(f"unknown backend {backend!r}; available: {avail}")

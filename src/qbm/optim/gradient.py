@@ -46,7 +46,7 @@ class Adam(Optimizer):
             self._v = np.zeros_like(grad)
         self._t += 1
         self._m = self.beta1 * self._m + (1 - self.beta1) * grad
-        self._v = self.beta2 * self._v + (1 - self.beta2) * grad ** 2
-        mhat = self._m / (1 - self.beta1 ** self._t)
-        vhat = self._v / (1 - self.beta2 ** self._t)
+        self._v = self.beta2 * self._v + (1 - self.beta2) * grad**2
+        mhat = self._m / (1 - self.beta1**self._t)
+        vhat = self._v / (1 - self.beta2**self._t)
         return theta - self.lr * mhat / (np.sqrt(vhat) + self.eps)

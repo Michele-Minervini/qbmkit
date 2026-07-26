@@ -3,7 +3,7 @@
 import numpy as np
 
 import qbm
-from qbm.losses import NLL, FreeEnergy, MarginalNLL
+from qbm.losses import FreeEnergy, MarginalNLL
 from qbm.operators import ParamHamiltonian, local_pauli_generators
 
 
@@ -11,10 +11,13 @@ def _fd_grad(loss, ham, theta, eps=1e-6):
     backend = qbm.DenseBackend()
     g = np.zeros_like(theta)
     for j in range(len(theta)):
-        tp = theta.copy(); tp[j] += eps
-        tm = theta.copy(); tm[j] -= eps
-        g[j] = (loss.value(backend.thermal_state(ham, tp))
-                - loss.value(backend.thermal_state(ham, tm))) / (2 * eps)
+        tp = theta.copy()
+        tp[j] += eps
+        tm = theta.copy()
+        tm[j] -= eps
+        g[j] = (
+            loss.value(backend.thermal_state(ham, tp)) - loss.value(backend.thermal_state(ham, tm))
+        ) / (2 * eps)
     return g
 
 
@@ -23,7 +26,8 @@ def test_marginal_nll_gradient_finite_diff():
     model = qbm.VisibleHiddenQBM(n_visible=2, n_hidden=2)
     theta = rng.normal(scale=0.4, size=model.n_params)
     model.theta = theta
-    q = rng.random(4); q /= q.sum()
+    q = rng.random(4)
+    q /= q.sum()
     loss = MarginalNLL(q, n_visible=2)
     analytic = loss.grad(model.state())
     assert np.allclose(analytic, _fd_grad(loss, model.ham, theta), atol=1e-6)
@@ -38,7 +42,8 @@ def test_marginal_nll_equals_relative_entropy_for_commuting_model():
     rng = np.random.default_rng(1)
     ham = ParamHamiltonian(["ZII", "IZI", "IIZ", "ZZI", "IZZ"])  # diagonal
     theta = rng.normal(scale=0.4, size=ham.n_params)
-    q = rng.random(8); q /= q.sum()
+    q = rng.random(8)
+    q /= q.sum()
     state = qbm.DenseBackend().thermal_state(ham, theta)
     g_marg = MarginalNLL(q, n_visible=3).grad(state)
     g_relent = RelativeEntropy(np.diag(q.astype(complex))).grad(state)

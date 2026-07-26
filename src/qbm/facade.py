@@ -71,6 +71,7 @@ def learn(
         model.theta = np.random.default_rng(seed).normal(scale=init_scale, size=model.n_params)
     if optimizer is None:
         optimizer = Adam(lr=lr)
-    model.history = fit(model, RelativeEntropy(np.diag(q.astype(complex))), optimizer,
-                        steps=steps, verbose=verbose)
+    model.history = fit(
+        model, RelativeEntropy(np.diag(q.astype(complex))), optimizer, steps=steps, verbose=verbose
+    )
     return model

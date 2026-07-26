@@ -36,7 +36,10 @@ class ThermalState(Protocol):
         """``d_j`` of the computational-basis probability vector, shape ``(J, dim)``."""
 
     def state_derivatives(self) -> np.ndarray:
-        """Full state derivatives ``[d_j rho]`` in the computational basis, shape ``(J, dim, dim)``."""
+        """Full state derivatives ``[d_j rho]`` in the computational basis.
+
+        Shape ``(J, dim, dim)``.
+        """
 
     def entropy(self) -> float:
         """von Neumann entropy ``S(rho)``."""
@@ -58,5 +61,4 @@ class ThermalState(Protocol):
 class Backend(Protocol):
     """Turns a ``ParamHamiltonian`` + parameters into a ``ThermalState``."""
 
-    def thermal_state(self, ham, theta: np.ndarray) -> ThermalState:
-        ...
+    def thermal_state(self, ham, theta: np.ndarray) -> ThermalState: ...

@@ -53,8 +53,8 @@ def test_ground_state_energy_estimation():
         steps=500,
     )
     e_est = model.energy(H)
-    assert e_est < hist.loss[0]                 # improved over the start
-    assert (e_est - e0) < 0.1                   # close to the true ground energy
+    assert e_est < hist.loss[0]  # improved over the start
+    assert (e_est - e0) < 0.1  # close to the true ground energy
 
 
 def test_generative_learns_realizable_distribution():
@@ -79,7 +79,7 @@ def test_generative_learns_realizable_distribution():
 def test_generative_bars_and_stripes():
     # BAS needs richer-than-nearest-neighbour correlations; the all-to-all
     # default of qbm.learn captures it well.
-    q = qbm.datasets.bars_and_stripes(grid=2)   # n = 4
+    q = qbm.datasets.bars_and_stripes(grid=2)  # n = 4
     kl_init = qbm.FullyVisibleQBM(n=4, connectivity="all").kl(q)
     model = qbm.learn(q, steps=600, lr=0.1)
     assert model.kl(q) < 0.05

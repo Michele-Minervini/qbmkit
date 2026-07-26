@@ -48,6 +48,18 @@ def test_classical_limit_metrics_coincide():
     assert np.allclose(km, wy, atol=1e-8)
 
 
+def test_metrics_finite_at_low_temperature():
+    # Regression: at very low temperature the Boltzmann factors underflow to exactly
+    # zero; the metric weights must stay finite instead of producing NaNs.
+    ham = ParamHamiltonian(local_pauli_generators(3))
+    state = qbm.DenseBackend().thermal_state(ham, np.full(ham.n_params, 300.0))
+    assert state.p.min() == 0.0
+    for kind in ("kubo_mori", "fisher_bures", "wigner_yanase"):
+        g = state.metric(kind)
+        assert np.all(np.isfinite(g))
+        assert _psd(g)
+
+
 def test_kubo_mori_is_free_energy_hessian():
     # The Kubo-Mori metric equals the Hessian of log Z(theta) (= covariance of
     # generators in the canonical-correlation sense). Check against a finite-diff
@@ -65,10 +77,18 @@ def test_kubo_mori_is_free_energy_hessian():
     H = np.zeros((J, J))
     for i in range(J):
         for j in range(J):
-            tpp = theta.copy(); tpp[i] += eps; tpp[j] += eps
-            tpm = theta.copy(); tpm[i] += eps; tpm[j] -= eps
-            tmp = theta.copy(); tmp[i] -= eps; tmp[j] += eps
-            tmm = theta.copy(); tmm[i] -= eps; tmm[j] -= eps
-            H[i, j] = (logZ(tpp) - logZ(tpm) - logZ(tmp) + logZ(tmm)) / (4 * eps ** 2)
+            tpp = theta.copy()
+            tpp[i] += eps
+            tpp[j] += eps
+            tpm = theta.copy()
+            tpm[i] += eps
+            tpm[j] -= eps
+            tmp = theta.copy()
+            tmp[i] -= eps
+            tmp[j] += eps
+            tmm = theta.copy()
+            tmm[i] -= eps
+            tmm[j] -= eps
+            H[i, j] = (logZ(tpp) - logZ(tpm) - logZ(tmp) + logZ(tmm)) / (4 * eps**2)
     km = backend.thermal_state(ham, theta).metric("kubo_mori")
     assert np.allclose(km, H, atol=1e-4)

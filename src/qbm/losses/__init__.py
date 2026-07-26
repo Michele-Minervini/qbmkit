@@ -5,6 +5,7 @@ from .energy import Energy
 from .free_energy import FreeEnergy
 from .likelihood import NLL, MarginalNLL, SqRBMNLL
 from .relative_entropy import MarginalRelativeEntropy, RelativeEntropy
+from .sdp import SDPDual, sdp_hamiltonian
 
 __all__ = [
     "Loss",
@@ -15,4 +16,6 @@ __all__ = [
     "MarginalNLL",
     "SqRBMNLL",
     "FreeEnergy",
+    "SDPDual",
+    "sdp_hamiltonian",
 ]

@@ -138,7 +138,7 @@ class EvolvedQBM:
 
     @property
     def evolution_phi(self) -> np.ndarray:
-        return self.theta[self.n_theta:]
+        return self.theta[self.n_theta :]
 
     def state(self) -> EvolvedState:
         return EvolvedState(self.G, self.H, self.gibbs_theta, self.evolution_phi, self.backend)

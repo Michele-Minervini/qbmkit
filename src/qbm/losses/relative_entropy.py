@@ -90,12 +90,12 @@ class MarginalRelativeEntropy(Loss):
 
     def grad(self, state) -> np.ndarray:
         _, mu, U, nh = self._reduced(state)
-        L = log_divided_differences(mu)            # (dv, dv) Frechet kernel for log
+        L = log_divided_differences(mu)  # (dv, dv) Frechet kernel for log
         rho_eig = U.conj().T @ self.rho @ U
-        D = state.state_derivatives()              # (J, dim, dim) d_j rho_vh
+        D = state.state_derivatives()  # (J, dim, dim) d_j rho_vh
         grad = np.empty(D.shape[0])
         for j in range(D.shape[0]):
             d_sv = partial_trace_hidden(D[j], self.n_visible, nh)
-            d_ln = (U.conj().T @ d_sv @ U) * L     # d_j ln sigma_v in its eigenbasis
+            d_ln = (U.conj().T @ d_sv @ U) * L  # d_j ln sigma_v in its eigenbasis
             grad[j] = -np.real(np.sum(rho_eig * d_ln.T))  # -Tr(rho * d_j ln sigma_v)
         return grad

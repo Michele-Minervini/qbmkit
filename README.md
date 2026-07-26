@@ -5,15 +5,34 @@ reference place to learn, study, research, and run simulations with QBMs.
 
 > Install name: `qbmkit` · Import name: `qbm`
 
+**Every research question is one call**, on the same core:
+
 ```python
 import qbm
 
-# Learn a classical distribution with a QBM in a few lines
-data  = qbm.datasets.bars_and_stripes(grid=3)
-model = qbm.learn(data)
-print(model.kl(data))
-samples = model.sample(1000)
+qbm.learn(data)                 # generative modelling of a classical distribution
+qbm.ground_state(H)             # ground-state energy estimation
+qbm.learn_state(sigma)          # quantum-state learning
+qbm.free_energy_min(H, T)       # free-energy minimisation / Gibbs preparation
+qbm.solve_sdp(C, A, b)          # semidefinite programming
 ```
+
+```python
+import qbm
+
+H   = qbm.hamiltonians.tfim(4, J=1.0, g=1.5)
+res = qbm.ground_state(H)        # quantum natural gradient, Kubo-Mori metric, by default
+print(res.report())
+# ground_state result
+#   final loss   : -6.50374
+#   energy       : -6.50374
+#   exact_energy : -6.50389
+#   error        : 0.000147
+```
+
+Every task returns a `Result` (`.model`, `.history`, `.report()`), and every default
+is overridable — swap the model, loss, optimizer, metric or backend without leaving
+the same API.
 
 ## Why this exists
 
@@ -35,11 +54,10 @@ follows. See [`DESIGN.md`](DESIGN.md).
 ## Architecture
 
 ```
-facade        qbm.learn(...) / qbm.fit(...)
-tasks         generative · ground state · state learning · (sdp, barren plateau ...)
-primitives    models | losses | metrics (QFI) | optimizers
+tasks         learn · ground_state · learn_state · free_energy_min · solve_sdp
+primitives    models | losses | metrics (QFI) | optimizers      ← all registry-addressable
 core          ParamHamiltonian · ThermalState · Φ_θ
-backend seam  dense (default) | tensor network | circuit / hardware
+backend seam  dense (default) | statevector (TFD) | jax | tensor network | circuit
 ```
 
 Only the backend layer touches concrete linear algebra. The default `DenseBackend`
@@ -99,18 +117,35 @@ run on any backend:
   `jax.jacrev`), GPU-capable; reproduces the analytic engine to ~1e-15.
 - *planned extras:* `tensor_network` (quimb), `circuit` (PennyLane/Qiskit).
 
+## Extending it
+
+Every component is registered by name, so new ones are plugins rather than forks:
+
+```python
+@qbm.register("loss", "my_loss")
+class MyLoss(qbm.losses.Loss):
+    def value(self, state): ...
+    def grad(self, state): ...
+
+qbm.build("loss", "my_loss")        # now addressable everywhere
+qbm.available()                     # {'model': [...], 'loss': [...], ...}
+```
+
+A new **model** needs no new losses or metrics, and a new **backend** needs no
+changes anywhere else — see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
 ## Status
 
-v0.1–v0.5 — dense + statevector (TFD purification + shots) + **JAX autodiff**
-backends behind a registry seam; fully-visible, visible+hidden, **semi-quantum RBM**
-(closed-form), and **Evolved QBM** models; relative-entropy / energy / marginal-NLL
-/ sqRBM-NLL / free-energy / quantum-target-relative-entropy losses, plus autodiff
-of arbitrary density-matrix objectives; GD / Adam / quantum natural gradient;
-Kubo–Mori / Fisher–Bures / Wigner–Yanase metrics; barren-plateau diagnostics;
-generative, ground-state, state-learning (classical **and** quantum targets,
-± hidden units, ± real-time evolution), and free-energy tasks end-to-end with
-exact-oracle, finite-difference, autodiff, and cross-backend tests (51 passing).
-See the roadmap in [`DESIGN.md`](DESIGN.md).
+v0.6 — one-call **task layer** (generative, ground state, state learning,
+free energy, **SDP**); dense + statevector (TFD purification + shots) + **JAX
+autodiff** backends behind a registry seam; fully-visible, visible+hidden,
+**semi-quantum RBM** (closed-form) and **Evolved QBM** models; relative-entropy /
+energy / marginal-NLL / sqRBM-NLL / free-energy / quantum-target-relative-entropy /
+SDP-dual losses, plus autodiff of arbitrary density-matrix objectives; GD / Adam /
+quantum natural gradient; Kubo–Mori / Fisher–Bures / Wigner–Yanase metrics;
+barren-plateau diagnostics. **85 tests** covering exact oracles, finite differences,
+autodiff, cross-backend agreement, strong duality/KKT, and an independent reference
+SDP solver. See the roadmap in [`DESIGN.md`](DESIGN.md).
 
 ## License
 

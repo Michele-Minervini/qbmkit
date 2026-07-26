@@ -24,9 +24,11 @@ import numpy as np  # noqa: E402
 from ..metrics.monotone import mc_weight  # noqa: E402
 
 
-def gibbs_density_matrix(theta, generator_stack):
+def gibbs_density_matrix(theta, generator_stack, offset=None):
     """``rho(theta) = e^{-G(theta)}/Z`` in JAX, overflow-safe via a ground-energy shift."""
     G = jnp.tensordot(theta.astype(generator_stack.dtype), generator_stack, axes=1)
+    if offset is not None:
+        G = G + offset
     w, V = jnp.linalg.eigh(G)
     shifted = jnp.exp(-(w - w[0]))
     p = shifted / jnp.sum(shifted)
@@ -43,11 +45,13 @@ class JaxThermalState:
         self.n_qubits = ham.n_qubits
         self._Gs = jnp.asarray(np.stack([np.asarray(g, dtype=complex) for g in ham.generators]))
         self._theta = jnp.asarray(self.theta)
+        off = getattr(ham, "offset", None)
+        self._offset = None if off is None else jnp.asarray(np.asarray(off, dtype=complex))
         self._rho = None
         self._D = None
 
     def _rho_fn(self, theta):
-        return gibbs_density_matrix(theta, self._Gs)
+        return gibbs_density_matrix(theta, self._Gs, self._offset)
 
     def density_matrix(self) -> np.ndarray:
         if self._rho is None:
@@ -73,13 +77,14 @@ class JaxThermalState:
     def state_derivatives(self) -> np.ndarray:
         # real/imag split keeps jacrev on a real-valued output (robust for complex rho)
         if self._D is None:
+
             def rho_ri(theta):
                 r = self._rho_fn(theta)
                 return jnp.stack([jnp.real(r), jnp.imag(r)])
 
-            jac = jax.jacrev(rho_ri)(self._theta)        # (2, dim, dim, J)
+            jac = jax.jacrev(rho_ri)(self._theta)  # (2, dim, dim, J)
             D = np.asarray(jac[0]) + 1j * np.asarray(jac[1])
-            self._D = np.moveaxis(D, -1, 0)              # (J, dim, dim)
+            self._D = np.moveaxis(D, -1, 0)  # (J, dim, dim)
         return self._D
 
     def diagonal_gradient(self) -> np.ndarray:

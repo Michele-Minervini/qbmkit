@@ -63,13 +63,15 @@ def test_autodiff_state_and_diagonal_derivatives():
 
 def test_value_and_grad_energy_matches_analytic():
     import jax.numpy as jnp
+
     from qbm import autodiff
 
     ham, theta = _ham_theta(seed=5)
     O = qbm.hamiltonians.tfim(ham.n_qubits, g=1.1)
     Oj = jnp.asarray(O.astype(complex))
-    val, g = autodiff.value_and_grad(ham.generators, theta,
-                                     lambda rho: jnp.real(jnp.trace(Oj @ rho)))
+    val, g = autodiff.value_and_grad(
+        ham.generators, theta, lambda rho: jnp.real(jnp.trace(Oj @ rho))
+    )
     dense = qbm.DenseBackend().thermal_state(ham, theta)
     assert np.isclose(val, dense.expect(O), atol=1e-9)
     assert np.allclose(g, dense.observable_gradient(O), atol=1e-7)
@@ -81,7 +83,11 @@ def test_training_on_jax_backend():
     e0 = qbm.oracles.ground_energy(H)
     model = qbm.FullyVisibleQBM(n=n, backend="jax")
     model.theta = np.random.default_rng(0).normal(scale=0.05, size=model.n_params)
-    hist = qbm.fit(model, qbm.losses.Energy(H),
-                   qbm.optim.NaturalGradient(metric="kubo_mori", lr=0.2, reg=1e-3), steps=300)
+    hist = qbm.fit(
+        model,
+        qbm.losses.Energy(H),
+        qbm.optim.NaturalGradient(metric="kubo_mori", lr=0.2, reg=1e-3),
+        steps=300,
+    )
     assert model.energy(H) < hist.loss[0]
     assert (model.energy(H) - e0) < 0.15

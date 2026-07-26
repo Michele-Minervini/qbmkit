@@ -27,9 +27,9 @@ def test_gibbs_matches_expm():
 def test_density_matrix_is_valid_state():
     ham, theta = _random_model(seed=1)
     rho = DenseThermalState(ham, theta).density_matrix()
-    assert np.allclose(rho, rho.conj().T, atol=1e-12)          # Hermitian
-    assert np.isclose(np.trace(rho).real, 1.0, atol=1e-12)     # unit trace
-    assert np.min(np.linalg.eigvalsh(rho)) > -1e-12            # PSD
+    assert np.allclose(rho, rho.conj().T, atol=1e-12)  # Hermitian
+    assert np.isclose(np.trace(rho).real, 1.0, atol=1e-12)  # unit trace
+    assert np.min(np.linalg.eigvalsh(rho)) > -1e-12  # PSD
 
 
 def test_probabilities_sum_to_one():

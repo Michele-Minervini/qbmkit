@@ -15,10 +15,12 @@ def _model(n=2, seed=0, phi_scale=0.5):
         Hgen[i][i] = "Y"
     Hgen = ["".join(s) for s in Hgen]  # Y field on each qubit (does not commute with G)
     m = qbm.EvolvedQBM(G, Hgen)
-    m.theta = np.concatenate([
-        rng.normal(scale=0.4, size=m.n_theta),
-        rng.normal(scale=phi_scale, size=m.n_phi),
-    ])
+    m.theta = np.concatenate(
+        [
+            rng.normal(scale=0.4, size=m.n_theta),
+            rng.normal(scale=phi_scale, size=m.n_phi),
+        ]
+    )
     return m
 
 
@@ -26,9 +28,11 @@ def _fd(model, loss, eps=1e-6):
     base = model.theta.copy()
     g = np.zeros_like(base)
     for j in range(len(base)):
-        model.theta = base.copy(); model.theta[j] += eps
+        model.theta = base.copy()
+        model.theta[j] += eps
         vp = loss.value(model.state())
-        model.theta = base.copy(); model.theta[j] -= eps
+        model.theta = base.copy()
+        model.theta[j] -= eps
         vm = loss.value(model.state())
         g[j] = (vp - vm) / (2 * eps)
     model.theta = base
@@ -99,11 +103,14 @@ def test_ground_state_energy_with_evolution():
     e0 = qbm.oracles.ground_energy(H)
     G = local_pauli_generators(n)
     m = qbm.EvolvedQBM(G, ["XII", "IXI", "IIX"])
-    m.theta = np.concatenate([
-        np.random.default_rng(0).normal(scale=0.05, size=m.n_theta),
-        np.zeros(m.n_phi),
-    ])
-    hist = qbm.fit(m, Energy(H),
-                   qbm.optim.NaturalGradient(metric="kubo_mori", lr=0.2, reg=1e-3), steps=400)
+    m.theta = np.concatenate(
+        [
+            np.random.default_rng(0).normal(scale=0.05, size=m.n_theta),
+            np.zeros(m.n_phi),
+        ]
+    )
+    hist = qbm.fit(
+        m, Energy(H), qbm.optim.NaturalGradient(metric="kubo_mori", lr=0.2, reg=1e-3), steps=400
+    )
     assert m.energy(H) < hist.loss[0]
     assert (m.energy(H) - e0) < 0.15

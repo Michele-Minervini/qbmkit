@@ -12,8 +12,10 @@ def _finite_diff(loss, ham, theta, eps=1e-6):
     backend = qbm.DenseBackend()
     g = np.zeros_like(theta)
     for j in range(len(theta)):
-        tp = theta.copy(); tp[j] += eps
-        tm = theta.copy(); tm[j] -= eps
+        tp = theta.copy()
+        tp[j] += eps
+        tm = theta.copy()
+        tm[j] -= eps
         vp = loss.value(backend.thermal_state(ham, tp))
         vm = loss.value(backend.thermal_state(ham, tm))
         g[j] = (vp - vm) / (2 * eps)
@@ -50,7 +52,7 @@ def test_relative_entropy_gradient(setup):
 
 def test_nll_gradient(setup):
     rng, n, ham, theta = setup
-    q = rng.random(2 ** n)
+    q = rng.random(2**n)
     q /= q.sum()
     loss = NLL(q)
     assert np.allclose(_analytic(loss, ham, theta), _finite_diff(loss, ham, theta), atol=1e-6)

@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: py${{ matrix.python-version }} ${{ matrix.extras }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.9", "3.11", "3.13"]
+        extras: ["dev"]
+        include:
+          # the JAX backend needs NumPy >= 2, so exercise it on a modern Python only
+          - os: ubuntu-latest
+            python-version: "3.12"
+            extras: "dev,jax"
+          - os: macos-latest
+            python-version: "3.12"
+            extras: "dev"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[${{ matrix.extras }}]"
+      - name: Show environment
+        run: python -c "import qbm, numpy; print('qbm', qbm.__version__, '| numpy', numpy.__version__, '| backends', qbm.available_backends())"
+      - name: Test
+        run: pytest -q --maxfail=3
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install ruff
+      - run: ruff check src tests examples
+      - run: ruff format --check src tests examples
+
+  notebooks:
+    # Executing the tutorials catches silent documentation rot.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev,jax,notebooks]"
+      - name: Execute all notebooks
+        run: |
+          for nb in notebooks/*.ipynb; do
+            echo "::group::$nb"
+            jupyter nbconvert --to notebook --execute --inplace "$nb" --ExecutePreprocessor.timeout=900
+            echo "::endgroup::"
+          done

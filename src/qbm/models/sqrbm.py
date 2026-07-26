@@ -27,8 +27,8 @@ class SqRBMState:
     """Lightweight closed-form sqRBM state: visible marginal + log-derivative table."""
 
     def __init__(self, pv: np.ndarray, dlog: np.ndarray):
-        self.pv = pv          # (2^n_visible,) visible marginal p(v)
-        self.dlog = dlog      # (J, 2^n_visible) d log p~(v) / d theta_k
+        self.pv = pv  # (2^n_visible,) visible marginal p(v)
+        self.dlog = dlog  # (J, 2^n_visible) d log p~(v) / d theta_k
 
     def visible_probabilities(self) -> np.ndarray:
         return self.pv
@@ -65,15 +65,15 @@ class SemiQuantumRBM:
     def _unpack(self, theta):
         nv, nh, nP = self.n_visible, self.n_hidden, self.nP
         a = theta[:nv]
-        b = theta[nv:nv + nh * nP].reshape(nh, nP)
-        w = theta[nv + nh * nP:].reshape(nv, nh, nP)
+        b = theta[nv : nv + nh * nP].reshape(nh, nP)
+        w = theta[nv + nh * nP :].reshape(nv, nh, nP)
         return a, b, w
 
     def state(self) -> SqRBMState:
         a, b, w = self._unpack(self.theta)
         S = self.S  # (dv, nv)
         Phi = b[None, :, :] + np.einsum("vi,ijP->vjP", S, w)  # (dv, nh, nP)
-        norm = np.sqrt(np.sum(Phi ** 2, axis=2))              # (dv, nh)
+        norm = np.sqrt(np.sum(Phi**2, axis=2))  # (dv, nh)
 
         log_pt = -(S @ a) + np.sum(np.log(np.cosh(norm)), axis=1)  # (dv,)
         log_pt -= log_pt.max()
@@ -87,9 +87,10 @@ class SemiQuantumRBM:
         nv, nh, nP = self.n_visible, self.n_hidden, self.nP
         dv = pv.shape[0]
         dlog = np.empty((self._J, dv))
-        dlog[:nv, :] = -S.T                                          # d/d a_i
-        dlog[nv:nv + nh * nP, :] = act.transpose(1, 2, 0).reshape(nh * nP, dv)  # d/d b_{j,P}
-        dlog[nv + nh * nP:, :] = np.einsum("vjP,vi->ijPv", act, S).reshape(nv * nh * nP, dv)  # d/d w
+        dlog[:nv, :] = -S.T  # d/d a_i
+        dlog[nv : nv + nh * nP, :] = act.transpose(1, 2, 0).reshape(nh * nP, dv)  # d/d b_{j,P}
+        dw = np.einsum("vjP,vi->ijPv", act, S)  # d/d w_{i,j,P}
+        dlog[nv + nh * nP :, :] = dw.reshape(nv * nh * nP, dv)
         return SqRBMState(pv, dlog)
 
     # -- read-outs ---------------------------------------------------------
@@ -139,5 +140,7 @@ class SemiQuantumRBM:
         return ParamHamiltonian(gens, n_qubits=n)
 
     def __repr__(self) -> str:
-        return (f"SemiQuantumRBM(n_visible={self.n_visible}, n_hidden={self.n_hidden}, "
-                f"hidden_paulis={self.hidden_paulis}, n_params={self._J})")
+        return (
+            f"SemiQuantumRBM(n_visible={self.n_visible}, n_hidden={self.n_hidden}, "
+            f"hidden_paulis={self.hidden_paulis}, n_params={self._J})"
+        )

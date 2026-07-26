@@ -28,7 +28,7 @@ def bars_and_stripes(grid: int = 3) -> np.ndarray:
     dim = 1 << n
 
     def cell_bit(i, j):  # qubit index for cell (row i, col j); qubit 0 is MSB
-        return (i * grid + j)
+        return i * grid + j
 
     def index_of(image):  # image[i][j] in {0,1} -> basis index
         v = 0
