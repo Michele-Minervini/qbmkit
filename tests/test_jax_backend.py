@@ -77,6 +77,43 @@ def test_value_and_grad_energy_matches_analytic():
     assert np.allclose(g, dense.observable_gradient(O), atol=1e-7)
 
 
+def test_degenerate_spectrum_falls_back_to_analytic():
+    # Regression (CI-only failure): the eigh VJP is undefined when eigenvalues
+    # coincide, so jax.grad/jacrev return NaN there. The backend must fall back to the
+    # exact analytic derivative (which takes the degenerate limit correctly) and agree
+    # with the dense engine, rather than poisoning the optimizer with NaNs.
+    ham = ParamHamiltonian(local_pauli_generators(3))
+    theta = np.zeros(ham.n_params)  # G = 0: fully degenerate spectrum
+    dense = qbm.DenseBackend().thermal_state(ham, theta)
+    jx = qbm.get_backend("jax").thermal_state(ham, theta)
+    O = qbm.hamiltonians.tfim(3, g=1.0)
+
+    with pytest.warns(RuntimeWarning, match="non-finite"):
+        grad = jx.observable_gradient(O)
+    assert np.all(np.isfinite(grad))
+    assert np.allclose(grad, dense.observable_gradient(O), atol=1e-8)
+
+    with pytest.warns(RuntimeWarning, match="non-finite"):
+        g = jx.metric("kubo_mori")
+    assert np.all(np.isfinite(g))
+    assert np.allclose(g, dense.metric("kubo_mori"), atol=1e-8)
+
+
+def test_natural_gradient_rejects_non_finite_metric():
+    # A non-finite metric must produce a clear, actionable error -- not an opaque
+    # LinAlgError from deep inside numpy.
+    class _NanMetric:
+        kind = "kubo_mori"
+
+        def matrix(self, state):
+            return np.full((2, 2), np.nan)
+
+    opt = qbm.optim.NaturalGradient(lr=0.1)
+    opt.metric = _NanMetric()
+    with pytest.raises(FloatingPointError, match="non-finite"):
+        opt.step(np.zeros(2), np.ones(2), state=object())
+
+
 def test_training_on_jax_backend():
     n = 3
     H = qbm.hamiltonians.tfim(n, J=1.0, g=1.2)

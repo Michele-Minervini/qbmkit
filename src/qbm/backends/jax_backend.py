@@ -8,11 +8,19 @@ cross-check of the dense engine: a JAX-backend result that matches the dense res
 independently validates the belief-propagation gradient and the Kubo-Mori/Fisher-
 Bures/Wigner-Yanase metric formulas.  It also runs on GPU/TPU.
 
-Note: ``eigh`` autodiff is fragile at exact eigenvalue degeneracies; generic
-parameters are fine.
+Degeneracies
+------------
+The VJP of ``eigh`` involves ``1 / (lambda_i - lambda_j)`` and is therefore undefined
+when eigenvalues coincide -- at such points ``jax.grad`` / ``jax.jacrev`` return NaN.
+The analytic kernels handle that limit exactly (they use the divided-difference form),
+so when autodiff produces a non-finite result this backend **falls back to the exact
+analytic derivative** and warns.  Generic parameters take the autodiff path, which is
+what makes the cross-validation against the dense engine meaningful.
 """
 
 from __future__ import annotations
+
+import warnings
 
 import jax
 
@@ -21,6 +29,7 @@ jax.config.update("jax_enable_x64", True)  # match the dense engine's float64 pr
 import jax.numpy as jnp  # noqa: E402
 import numpy as np  # noqa: E402
 
+from ..channels import state_derivative_kernel  # noqa: E402
 from ..metrics.monotone import mc_weight  # noqa: E402
 
 
@@ -66,13 +75,48 @@ class JaxThermalState:
         rho = self._rho_fn(self._theta)
         return np.asarray(jnp.real(jnp.einsum("jab,ba->j", self._Gs, rho)))
 
+    def _analytic_state_derivatives(self) -> np.ndarray:
+        """Exact ``[d_j rho]`` from the eigenbasis divided-difference kernel.
+
+        Used when the ``eigh`` VJP is undefined (degenerate spectrum); this form takes
+        the degenerate limit correctly.
+        """
+        G = self.ham.matrix(self.theta)
+        w, V = np.linalg.eigh(G)
+        shifted = np.exp(-(w - w[0]))
+        p = shifted / shifted.sum()
+        K = state_derivative_kernel(w, p)
+        diag = np.diag_indices(self.dim)
+        out = np.empty((self.ham.n_params, self.dim, self.dim), dtype=complex)
+        for j, g in enumerate(self.ham.generators):
+            geig = V.conj().T @ g @ V
+            expect = float(np.real(np.sum(p * np.diag(geig))))
+            Dj = geig * K
+            Dj[diag] += p * expect
+            out[j] = V @ Dj @ V.conj().T
+        return out
+
+    def _warn_fallback(self, what):
+        warnings.warn(
+            f"JAX autodiff produced non-finite values for {what} (the eigh VJP is "
+            "undefined at degenerate eigenvalues); falling back to the exact analytic "
+            "derivative.",
+            RuntimeWarning,
+            stacklevel=3,
+        )
+
     def observable_gradient(self, op) -> np.ndarray:
         Oj = jnp.asarray(np.asarray(op, dtype=complex))
 
         def f(theta):
             return jnp.real(jnp.trace(Oj @ self._rho_fn(theta)))
 
-        return np.asarray(jax.grad(f)(self._theta))
+        grad = np.asarray(jax.grad(f)(self._theta))
+        if not np.all(np.isfinite(grad)):
+            self._warn_fallback("an observable gradient")
+            D = self._analytic_state_derivatives()
+            grad = np.real(np.einsum("kl,jlk->j", np.asarray(op, dtype=complex), D))
+        return grad
 
     def state_derivatives(self) -> np.ndarray:
         # real/imag split keeps jacrev on a real-valued output (robust for complex rho)
@@ -84,7 +128,11 @@ class JaxThermalState:
 
             jac = jax.jacrev(rho_ri)(self._theta)  # (2, dim, dim, J)
             D = np.asarray(jac[0]) + 1j * np.asarray(jac[1])
-            self._D = np.moveaxis(D, -1, 0)  # (J, dim, dim)
+            D = np.moveaxis(D, -1, 0)  # (J, dim, dim)
+            if not np.all(np.isfinite(D)):
+                self._warn_fallback("state derivatives")
+                D = self._analytic_state_derivatives()
+            self._D = D
         return self._D
 
     def diagonal_gradient(self) -> np.ndarray:

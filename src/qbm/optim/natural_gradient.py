@@ -27,6 +27,18 @@ class NaturalGradient(Optimizer):
             raise ValueError("NaturalGradient.step requires the current ThermalState")
         grad = np.asarray(grad, dtype=float)
         g = self.metric.matrix(state)
+        if not np.all(np.isfinite(g)):
+            raise FloatingPointError(
+                f"the {self.metric.kind} metric contains non-finite entries, so the "
+                "natural-gradient step is undefined. This usually means the model "
+                "hit a degenerate spectrum on a backend whose derivatives are not "
+                "degeneracy-safe. Try backend='dense', a different initialisation, "
+                "or a plain optimizer (Adam / GradientDescent)."
+            )
         g = g + self.reg * np.eye(g.shape[0])
-        nat = np.linalg.solve(g, grad)
+        # lstsq is robust to a (near-)singular metric; the ridge usually prevents it
+        try:
+            nat = np.linalg.solve(g, grad)
+        except np.linalg.LinAlgError:
+            nat = np.linalg.lstsq(g, grad, rcond=None)[0]
         return theta - self.lr * nat
