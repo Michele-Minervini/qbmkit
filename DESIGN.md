@@ -284,15 +284,28 @@ examples/   tests/   README.md   DESIGN.md   pyproject.toml
 
 ## 8. Correctness is a feature
 
-A *reference* library must be trustworthy. The dense eigendecomposition backend
-is an exact oracle, enabling regression tests that gate every change:
+A *reference* library must be trustworthy. The dense eigendecomposition backend is
+an exact oracle, and the suite (100+ tests) gates every change across seven tiers:
 
-1. analytic gradient vs finite difference (all losses);
-2. metric Loewner orderings `g_FB <= g_WY <= 2 g_FB`, `g_KM >= g_FB`;
-3. eigendecomposition Gibbs state vs `expm` on an overflow-safe small case;
-4. commuting/diagonal limit reproduces the classical Boltzmann machine;
-5. cross-backend agreement (once TN/circuit backends land);
-6. one end-to-end test per task reproducing a known result.
+1. **Exact / closed form** — eigendecomposition Gibbs state vs `expm`; sqRBM
+   closed form vs dense Gibbs; commuting limit = classical Boltzmann machine;
+   free energy = `-log Z`; unconstrained SDP = `exp(beta C)/Z`.
+2. **Internal identities** — analytic gradient vs finite differences (every loss);
+   analytic vs JAX autodiff (~1e-15); metric Loewner orderings
+   `g_FB <= g_WY <= 2 g_FB`, `g_KM >= g_FB`; `g_KM = Hessian(log Z)`; variational
+   bounds `F >= F_exact`, energy `>= E0`; SDP strong duality and KKT.
+3. **Cross-backend** — dense, statevector (TFD) and jax agree to ~1e-9 on states,
+   expectations, gradients and metrics.
+4. **Convergence** — realizable targets reach machine precision; ground energy vs
+   exact diagonalisation; SDP vs an independent scipy-BFGS reference solver.
+5. **Paper reproductions** (`tests/reproductions/`) — sqRBM expressivity
+   (2502.17562), QNG vs GD (2410.24058), EQBM expressivity (2501.03367),
+   barren-plateau-free QBM training (2410.12935).
+6. **Property-based** (`tests/test_properties.py`, Hypothesis) — random
+   Hamiltonians: valid states, PSD/ordered metrics, correct gradients, cross-backend
+   agreement, TFD identities.
+7. **Scaling benchmarks** (`benchmarks/scaling.py`) — time/memory vs qubit count
+   with the empirical scaling exponent and the documented dense ceiling.
 
 ---
 
@@ -338,11 +351,15 @@ is an exact oracle, enabling regression tests that gate every change:
   every built-in** (`qbm.register` / `build` / `available`); CI on Python 3.9–3.13
   with lint, format and notebook-execution gates; `CONTRIBUTING.md`, `CITATION.cff`,
   pre-commit and issue templates.
-- **v0.7+ (next)** — tensor-network backend (quimb) for scalable structured
+- **v0.7 (done)** — the verification suite (Phase 3): four paper reproductions
+  (`tests/reproductions/`), Hypothesis property-based tests, a scaling benchmark,
+  and an examples gallery. 100+ tests; CI green on Python 3.9–3.13 × {core, jax} ×
+  {Linux, macOS}.
+- **v0.8+ (next)** — tensor-network backend (quimb) for scalable structured
   systems; circuit/hardware backend (PennyLane/Qiskit) with VarQITE/QITE Gibbs
   preparation and circuit-form belief-propagation / Hadamard-test estimators;
   sample-based training (CD-k, QBGE); Petz–Tsallis loss; metrology / Cramér–Rao
-  module; paper-reproduction suite and scaling benchmarks; docs site and PyPI.
+  module; docs site and PyPI release.
 
 **Design note (the unification, validated through v0.4).** Every model exposes a
 small generic interface — `density_matrix()`, `expect(O)`, `observable_gradient(O)`,

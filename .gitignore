@@ -25,3 +25,11 @@ htmlcov/
 
 # Notebooks
 .ipynb_checkpoints/
+
+# Generated benchmark / example artifacts (regenerable, machine-specific)
+benchmarks/*.csv
+benchmarks/*.png
+examples/figures/
+
+# Hypothesis
+.hypothesis/

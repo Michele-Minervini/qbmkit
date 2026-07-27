@@ -143,9 +143,12 @@ autodiff** backends behind a registry seam; fully-visible, visible+hidden,
 energy / marginal-NLL / sqRBM-NLL / free-energy / quantum-target-relative-entropy /
 SDP-dual losses, plus autodiff of arbitrary density-matrix objectives; GD / Adam /
 quantum natural gradient; Kubo–Mori / Fisher–Bures / Wigner–Yanase metrics;
-barren-plateau diagnostics. **85 tests** covering exact oracles, finite differences,
-autodiff, cross-backend agreement, strong duality/KKT, and an independent reference
-SDP solver. See the roadmap in [`DESIGN.md`](DESIGN.md).
+barren-plateau diagnostics. **100 tests** across seven tiers — exact oracles, finite
+differences, autodiff (~1e-15), cross-backend agreement, strong duality/KKT with an
+independent reference SDP solver, **four paper reproductions**
+([`tests/reproductions/`](tests/reproductions)), Hypothesis property-based tests, and
+a [scaling benchmark](benchmarks/scaling.py) — green on Python 3.9–3.13 × {core, jax}
+× {Linux, macOS}. See the roadmap in [`DESIGN.md`](DESIGN.md).
 
 ## License
 

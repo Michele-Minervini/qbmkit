@@ -32,7 +32,7 @@ jax = ["jax>=0.4", "jaxlib>=0.4"]
 tn = ["quimb>=1.7"]
 circuit = ["pennylane>=0.34"]
 notebooks = ["matplotlib>=3.5", "jupyter", "nbformat", "nbclient"]
-dev = ["pytest>=7", "pytest-cov", "ruff", "matplotlib>=3.5", "nbclient", "nbformat"]
+dev = ["pytest>=7", "pytest-cov", "ruff", "hypothesis>=6", "matplotlib>=3.5", "nbclient", "nbformat"]
 
 [project.urls]
 Homepage = "https://github.com/micheleminervini/qbmkit"
