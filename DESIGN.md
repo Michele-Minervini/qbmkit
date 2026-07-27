@@ -355,11 +355,22 @@ an exact oracle, and the suite (100+ tests) gates every change across seven tier
   (`tests/reproductions/`), Hypothesis property-based tests, a scaling benchmark,
   and an examples gallery. 100+ tests; CI green on Python 3.9–3.13 × {core, jax} ×
   {Linux, macOS}.
-- **v0.8+ (next)** — tensor-network backend (quimb) for scalable structured
-  systems; circuit/hardware backend (PennyLane/Qiskit) with VarQITE/QITE Gibbs
-  preparation and circuit-form belief-propagation / Hadamard-test estimators;
-  sample-based training (CD-k, QBGE); Petz–Tsallis loss; metrology / Cramér–Rao
-  module; docs site and PyPI release.
+- **v0.8 (done)** — scaling (Phase 4): a **tensor-network backend** (quimb) that
+  represents the thermal state as a purified MPS and reaches 20 qubits in ~1 s at
+  bond dimension 4 (a dense `rho` would be ~17 TB), validated against the dense
+  engine to ~1e-6; **sample-based training** (`qbm.sampling`) with block-Gibbs
+  chains and contrastive divergence, exact for commuting hidden units and a
+  documented approximation otherwise; and the lazy-generator fix below.
+- **v0.9+ (next)** — circuit/hardware backend (PennyLane/Qiskit) with VarQITE/QITE
+  Gibbs preparation and Hadamard-test estimators; the full Gibbs-map (imaginary-time)
+  block sampler that removes the non-commuting CD bias; Petz–Tsallis loss;
+  metrology / Cramér–Rao module; docs site and PyPI release.
+
+**Scaling note (v0.8).** `ParamHamiltonian` materialises Pauli generators
+**lazily**. Building them eagerly costs `n_params * 4^n` complex entries, which caps
+*every* backend at ~13 qubits no matter how it represents the state; the
+tensor-network backend works from the Pauli labels and so never pays that cost.
+Any future backend that scales must likewise avoid touching `.generators`.
 
 **Design note (the unification, validated through v0.4).** Every model exposes a
 small generic interface — `density_matrix()`, `expect(O)`, `observable_gradient(O)`,

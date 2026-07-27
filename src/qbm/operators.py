@@ -136,28 +136,46 @@ class ParamHamiltonian:
         ``dG/dtheta_j = G_j`` is unaffected by it, every gradient and metric in the
         library works unchanged; it exists for models with fixed bias terms and for
         the SDP dual (where the objective matrix sits in the exponent).
+
+    Notes
+    -----
+    Pauli-string generators are materialised as dense matrices **lazily**, on first
+    access to :attr:`generators`.  A dense generator is ``2^n x 2^n``, so eager
+    construction would cap every backend at ~13 qubits; backends that work from the
+    labels alone (e.g. the tensor-network backend) therefore never pay that cost.
     """
 
     def __init__(self, generators, labels=None, n_qubits=None, offset=None):
-        mats: list[np.ndarray] = []
-        lbls: list[str] = []
-        for i, g in enumerate(generators):
-            if isinstance(g, str):
-                mats.append(pauli(g))
-                lbls.append(g)
-            else:
-                mats.append(np.asarray(g, dtype=complex))
-                lbls.append(labels[i] if labels is not None else f"G{i}")
-        if not mats:
+        raw = list(generators)
+        if not raw:
             raise ValueError("ParamHamiltonian needs at least one generator")
-        dim = mats[0].shape[0]
-        for m in mats:
-            if m.shape != (dim, dim):
+
+        lbls: list[str] = []
+        for i, g in enumerate(raw):
+            if isinstance(g, str):
+                lbls.append(g.upper())
+            else:
+                lbls.append(labels[i] if labels is not None else f"G{i}")
+
+        # infer the dimension without materialising anything
+        first = raw[0]
+        if isinstance(first, str):
+            n_sites = len(first)
+            dim = 1 << n_sites
+            inferred_qubits = n_sites
+        else:
+            dim = np.asarray(first).shape[0]
+            inferred_qubits = int(round(np.log2(dim)))
+        for g in raw:
+            size = (1 << len(g)) if isinstance(g, str) else np.asarray(g).shape[0]
+            if size != dim:
                 raise ValueError("all generators must be square and the same size")
-        self.generators = mats
+
+        self._raw = raw
+        self._mats: list[np.ndarray] | None = None
         self.labels = lbls
         self.dim = dim
-        self.n_qubits = n_qubits if n_qubits is not None else int(round(np.log2(dim)))
+        self.n_qubits = n_qubits if n_qubits is not None else inferred_qubits
         if offset is not None:
             offset = np.asarray(offset, dtype=complex)
             if offset.shape != (dim, dim):
@@ -165,8 +183,17 @@ class ParamHamiltonian:
         self.offset = offset
 
     @property
+    def generators(self) -> list:
+        """Dense generator matrices, built (and cached) on first access."""
+        if self._mats is None:
+            self._mats = [
+                pauli(g) if isinstance(g, str) else np.asarray(g, dtype=complex) for g in self._raw
+            ]
+        return self._mats
+
+    @property
     def n_params(self) -> int:
-        return len(self.generators)
+        return len(self._raw)
 
     def matrix(self, theta) -> np.ndarray:
         """Return the dense Hermitian matrix ``offset + sum_j theta_j G_j``."""

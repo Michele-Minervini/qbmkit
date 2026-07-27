@@ -115,7 +115,12 @@ run on any backend:
   budget for hardware-like measurement.
 - **`jax`** (`pip install qbmkit[jax]`) — autodiff gradients/metrics (`jax.grad`/
   `jax.jacrev`), GPU-capable; reproduces the analytic engine to ~1e-15.
-- *planned extras:* `tensor_network` (quimb), `circuit` (PennyLane/Qiskit).
+- **`tensor_network`** (`pip install qbmkit[tn]`) — thermal state as a **purified
+  matrix-product state**, for expectation-based training (relative entropy / NLL)
+  well past the dense ceiling: 20 qubits in ~1 s at bond dimension 4, where a dense
+  density matrix would need ~17 TB. Metrics and the energy gradient are not available
+  there and raise a clear error.
+- *planned extra:* `circuit` (PennyLane/Qiskit) for hardware execution.
 
 ## Extending it
 
@@ -136,14 +141,15 @@ changes anywhere else — see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Status
 
-v0.6 — one-call **task layer** (generative, ground state, state learning,
+v0.8 — one-call **task layer** (generative, ground state, state learning,
 free energy, **SDP**); dense + statevector (TFD purification + shots) + **JAX
-autodiff** backends behind a registry seam; fully-visible, visible+hidden,
+autodiff** + **tensor-network** backends behind a registry seam; sample-based
+training (block-Gibbs / contrastive divergence); fully-visible, visible+hidden,
 **semi-quantum RBM** (closed-form) and **Evolved QBM** models; relative-entropy /
 energy / marginal-NLL / sqRBM-NLL / free-energy / quantum-target-relative-entropy /
 SDP-dual losses, plus autodiff of arbitrary density-matrix objectives; GD / Adam /
 quantum natural gradient; Kubo–Mori / Fisher–Bures / Wigner–Yanase metrics;
-barren-plateau diagnostics. **100 tests** across seven tiers — exact oracles, finite
+barren-plateau diagnostics. **118 tests** across seven tiers — exact oracles, finite
 differences, autodiff (~1e-15), cross-backend agreement, strong duality/KKT with an
 independent reference SDP solver, **four paper reproductions**
 ([`tests/reproductions/`](tests/reproductions)), Hypothesis property-based tests, and

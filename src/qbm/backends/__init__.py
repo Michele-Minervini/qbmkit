@@ -42,6 +42,10 @@ def get_backend(backend=None, **kwargs):
             from .jax_backend import JaxBackend
 
             return JaxBackend(**kwargs)
+        if backend in ("tensor_network", "tn"):
+            from .tensor_network import TensorNetworkBackend
+
+            return TensorNetworkBackend(**kwargs)
         avail = ", ".join(available_backends())
         raise KeyError(f"unknown backend {backend!r}; available: {avail}")
     return backend
@@ -53,13 +57,14 @@ def register_backend(name, factory):
 
 
 def available_backends():
+    """Backend names usable in this environment (optional extras included if installed)."""
     names = set(_REGISTRY)
-    try:
-        import jax  # noqa: F401
-
-        names.add("jax")
-    except Exception:
-        pass
+    for module, name in (("jax", "jax"), ("quimb", "tensor_network")):
+        try:
+            __import__(module)
+            names.add(name)
+        except Exception:
+            pass
     return sorted(names)
 
 

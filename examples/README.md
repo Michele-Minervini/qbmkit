@@ -10,6 +10,7 @@ Run any of them with `python examples/<file>.py` (from the repo root, in the ven
 | 03 | [`03_state_learning.py`](03_state_learning.py) | Learn a target quantum state by relative-entropy minimisation | D → machine precision |
 | 04 | [`04_free_energy_minimization.py`](04_free_energy_minimization.py) | Variational free energy / Gibbs preparation at several temperatures | matches exact to ~1e-15 |
 | 05 | [`05_semidefinite_program.py`](05_semidefinite_program.py) | Solve an SDP through the QBM core (unconstrained + constrained) | strong duality to ~1e-15 |
+| 06 | [`06_tensor_network_scaling.py`](06_tensor_network_scaling.py) | Purified-MPS backend past the dense ceiling (needs `[tn]`) | n=20 in ~1 s; matches dense to 1e-6 |
 
 ## Visual gallery (notebooks)
 
