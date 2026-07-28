@@ -13,6 +13,7 @@ Guided notebooks that teach the theory of quantum Boltzmann machines alongside t
 | 6 | [`06_evolved_qbm.ipynb`](06_evolved_qbm.ipynb) | The Evolved QBM (real-time evolution on top of the Gibbs state); extra expressivity; the (θ, φ) quantum Fisher information. |
 | 7 | [`07_backends_and_purification.ipynb`](07_backends_and_purification.ipynb) | The backend seam; thermofield-double purification; statevector vs dense; shot noise and sample-complexity. |
 | 8 | [`08_jax_autodiff.ipynb`](08_jax_autodiff.ipynb) | The JAX backend; autodiff gradients/metrics validated against the analytic engine; training a novel loss with no hand-derived gradient. (needs `qbmkit[jax]`) |
+| 9 | [`09_alpha_z_metrics.ipynb`](09_alpha_z_metrics.ipynb) | **Choosing your geometry**: the α-z family of quantum Fisher information — one kernel containing Kubo–Mori, Fisher–Bures and Wigner–Yanase; the map of metrics and their monotone region; natural gradient under different geometries; custom kernels. |
 
 ## Running
 
