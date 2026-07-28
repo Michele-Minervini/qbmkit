@@ -159,6 +159,22 @@ with the Morozova–Chentsov weight `W^c_{kl} = 1 / c(p_k, p_l)`:
 | Kubo–Mori (BKM)   | logarithmic `(x-y)/(ln x-ln y)`| `(ln x - ln y)/(x - y)`      |
 | Wigner–Yanase     | `((sqrt x + sqrt y)/2)^2`     | `4 / (sqrt x + sqrt y)^2`     |
 
+**Arbitrary metrics.** Because the metric enters *only* through `W`, the library is not
+limited to those three. The **alpha-z information matrices** of arXiv:2510.02218
+(Wilde), derived from the alpha-z Renyi relative entropies, are the kernel (Thm 10)
+
+```
+zeta(x,y) = z/(a(1-a)) * (x^((1-a)/z) - y^((1-a)/z))/(x-y)
+                       * (x^(a/z) - y^(a/z))/(x^(1/z) - y^(1/z)),   zeta(x,x) = 1/x
+```
+
+and the three metrics above are special cases: Kubo-Mori is `a -> 1` (any `z`),
+Fisher-Bures is `(a,z) = (1/2, 1/2)`, Wigner-Yanase is `(1/2, 1)`. `z = 1` gives the
+Petz-Renyi family and `z = a` the sandwiched-Renyi family. `CustomMetric` takes any
+user kernel. `alpha_z_is_monotone` implements the data-processing region (Fact 9 of
+the paper); outside it the matrix is still defined but is not a monotone metric, and
+`AlphaZ` warns.
+
 These satisfy the Loewner orderings `g_FB <= g_WY <= 2 g_FB` and `g_KM >= g_FB`,
 which the test suite asserts. **Kubo–Mori is the default QBM metric** (it is the
 Hessian of the free energy, giving Newton-like natural-gradient steps for Gibbs

@@ -92,6 +92,10 @@ def register_builtins() -> None:
         ("kubo_mori", metrics.KuboMori),
         ("fisher_bures", metrics.FisherBures),
         ("wigner_yanase", metrics.WignerYanase),
+        ("alpha_z", metrics.AlphaZ),
+        ("petz_renyi", metrics.PetzRenyi),
+        ("sandwiched_renyi", metrics.SandwichedRenyi),
+        ("custom", metrics.CustomMetric),
     ]:
         add("metric", name, obj)
 

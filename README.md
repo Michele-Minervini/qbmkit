@@ -122,6 +122,36 @@ run on any backend:
   there and raise a clear error.
 - *planned extra:* `circuit` (PennyLane/Qiskit) for hardware execution.
 
+## Arbitrary quantum Fisher information metrics
+
+Every metric is a weight kernel `W[k,l]` on the state derivatives in the eigenbasis of
+ρ, so `qbmkit` supports the **whole family** rather than a fixed list — including the
+two-parameter **α-z information matrices** of
+[arXiv:2510.02218](https://arxiv.org/abs/2510.02218):
+
+```python
+from qbm.metrics import AlphaZ, PetzRenyi, SandwichedRenyi, CustomMetric
+
+AlphaZ(0.7, 2.0)                 # any (α, z)
+PetzRenyi(2.0)                   # z = 1 slice
+SandwichedRenyi(0.5)             # z = α slice
+CustomMetric(lambda x, y: 1/np.sqrt(x*y), "geometric")   # your own kernel
+```
+
+The three classic metrics are special cases of that one family — verified to machine
+precision:
+
+| metric | α-z parameters |
+|---|---|
+| Kubo–Mori | α → 1 (any z) |
+| Fisher–Bures (SLD) | α = ½, z = ½ (sandwiched Rényi ½) |
+| Wigner–Yanase | α = ½, z = 1 (Petz–Rényi ½) |
+
+Any of them drops straight into quantum natural gradient
+(`NaturalGradient(metric=SandwichedRenyi(0.5))`). `AlphaZ` warns when (α, z) falls
+outside the region where the data-processing inequality is known to hold, so a
+non-monotone choice is never silent.
+
 ## Extending it
 
 Every component is registered by name, so new ones are plugins rather than forks:
@@ -148,8 +178,9 @@ training (block-Gibbs / contrastive divergence); fully-visible, visible+hidden,
 **semi-quantum RBM** (closed-form) and **Evolved QBM** models; relative-entropy /
 energy / marginal-NLL / sqRBM-NLL / free-energy / quantum-target-relative-entropy /
 SDP-dual losses, plus autodiff of arbitrary density-matrix objectives; GD / Adam /
-quantum natural gradient; Kubo–Mori / Fisher–Bures / Wigner–Yanase metrics;
-barren-plateau diagnostics. **118 tests** across seven tiers — exact oracles, finite
+quantum natural gradient; **arbitrary QFI metrics** (the α-z family plus user kernels,
+with Kubo–Mori / Fisher–Bures / Wigner–Yanase as special cases);
+barren-plateau diagnostics. **148 tests** across seven tiers — exact oracles, finite
 differences, autodiff (~1e-15), cross-backend agreement, strong duality/KKT with an
 independent reference SDP solver, **four paper reproductions**
 ([`tests/reproductions/`](tests/reproductions)), Hypothesis property-based tests, and
