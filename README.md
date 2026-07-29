@@ -120,7 +120,39 @@ run on any backend:
   well past the dense ceiling: 20 qubits in ~1 s at bond dimension 4, where a dense
   density matrix would need ~17 TB. Metrics and the energy gradient are not available
   there and raise a clear error.
-- *planned extra:* `circuit` (PennyLane/Qiskit) for hardware execution.
+- **`circuit`** — runs the QBM through **actual quantum circuits**: the thermal state is
+  prepared as a thermofield-double purification and every quantity is obtained by
+  *measurement*, with an optional shot budget. Includes Hadamard-test estimators for the
+  energy gradient and the α-z / Kubo–Mori information matrices — the hardware route.
+  Needs **no vendor SDK**: circuits live in an internal IR run by our own simulator, with
+  **OpenQASM 3**, Qiskit and PennyLane as thin *emitters* (`pip install qbmkit[circuit]`).
+
+## Running on quantum circuits and hardware
+
+```python
+import qbm
+from qbm.metrics import AlphaZ
+
+model = qbm.FullyVisibleQBM(n=3, backend="circuit")     # measurement-based
+state = model.state()
+state.metric(AlphaZ(0.5, 1.0))        # information matrix from Hadamard tests
+state.resource_estimate()             # circuits and shots a device would need
+
+from qbm.circuits.adapters import to_qasm3, to_qiskit   # export anywhere
+```
+
+The algorithms are written in a small internal circuit IR, so **no quantum SDK is a
+dependency of the core**. Qiskit, PennyLane and OpenQASM 3 are ~100-line adapters — an
+SDK breaking change (Qiskit has removed `opflow`, moved `qiskit.algorithms` out of core,
+dropped `execute()` and revised its primitives twice) costs one file, not the library.
+
+Honest scope: expectations, generative gradients, sampling, the energy gradient and the
+information matrices are measurable. Entropy, `log Z`, free energy and the SDP dual
+depend on the *spectrum* of ρ, which a device does not expose — those raise a clear
+error and belong on `backend="dense"`. Gibbs-state preparation is exact here (TFD
+synthesis) so the estimators can be validated; variational preparation on real hardware
+remains an open research problem, and `resource_estimate()` reports the shot cost up
+front.
 
 ## Arbitrary quantum Fisher information metrics
 
@@ -180,7 +212,7 @@ energy / marginal-NLL / sqRBM-NLL / free-energy / quantum-target-relative-entrop
 SDP-dual losses, plus autodiff of arbitrary density-matrix objectives; GD / Adam /
 quantum natural gradient; **arbitrary QFI metrics** (the α-z family plus user kernels,
 with Kubo–Mori / Fisher–Bures / Wigner–Yanase as special cases);
-barren-plateau diagnostics. **148 tests** across seven tiers — exact oracles, finite
+barren-plateau diagnostics. **174 tests** across seven tiers — exact oracles, finite
 differences, autodiff (~1e-15), cross-backend agreement, strong duality/KKT with an
 independent reference SDP solver, **four paper reproductions**
 ([`tests/reproductions/`](tests/reproductions)), Hypothesis property-based tests, and

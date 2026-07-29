@@ -99,13 +99,14 @@ class DenseThermalState:
         ``d_j p(a) = (d_j rho)_{aa}`` in the computational basis.  Used by
         marginal-likelihood losses for visible/hidden models (the hidden trace is
         just a reshape-and-sum over this).
+
+        Only the diagonal of ``V D V^dag`` is needed, so we contract it directly
+        (``diag(V A V^dag)_a = sum_l (V A)_{al} conj(V)_{al}``) instead of forming the
+        full transformed matrix -- one batched matmul rather than two per generator.
         """
         D = self._deig_list()
-        out = np.empty((D.shape[0], self.dim))
-        for j in range(D.shape[0]):
-            Dc = self.V @ D[j] @ self.V.conj().T
-            out[j] = np.real(np.diag(Dc))
-        return out
+        M = np.einsum("ab,jbc->jac", self.V, D, optimize=True)
+        return np.real(np.einsum("jac,ac->ja", M, self.V.conj(), optimize=True))
 
     def state_derivatives(self) -> np.ndarray:
         """Full state derivatives ``[d_j rho]`` in the computational basis, shape ``(J, dim, dim)``.

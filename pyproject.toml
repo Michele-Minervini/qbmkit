@@ -30,7 +30,8 @@ dependencies = [
 # heavy / future backends are opt-in extras so the base install stays light
 jax = ["jax>=0.4", "jaxlib>=0.4"]
 tn = ["quimb>=1.7"]
-circuit = ["pennylane>=0.34"]
+circuit = ["qiskit>=1.0"]
+pennylane = ["pennylane>=0.34"]
 notebooks = ["matplotlib>=3.5", "jupyter", "nbformat", "nbclient"]
 dev = [
     "pytest>=7",
@@ -38,6 +39,7 @@ dev = [
     "ruff",
     "hypothesis>=6",
     "quimb>=1.7",
+    "qiskit>=1.0",
     "matplotlib>=3.5",
     "nbclient",
     "nbformat",
