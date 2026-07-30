@@ -237,3 +237,77 @@ def test_trotter_decomposition_matches_exact_evolution():
         errs.append(np.max(np.abs(U - exact)))
     assert errs[1] < errs[0]
     assert errs[1] < 0.05
+
+
+# ---------------------------------------------------------------------------
+# Emitter / executor swapping (the "no SDK in the core" guarantee)
+# ---------------------------------------------------------------------------
+def test_core_has_no_sdk_imports_outside_adapters():
+    """The algorithms must not import a vendor SDK; only the adapter leaves may."""
+    import pathlib
+    import re
+
+    root = pathlib.Path(qbm.__file__).parent
+    pattern = re.compile(r"(?:^|[^a-z_])(?:import|from)\s+(qiskit|pennylane)\b")
+    offenders = [
+        str(f.relative_to(root))
+        for f in root.rglob("*.py")
+        if "adapters" not in f.parts and pattern.search(f.read_text())
+    ]
+    assert offenders == [], f"SDK imported outside adapters: {offenders}"
+
+
+def test_importing_qbm_does_not_import_any_sdk():
+    """Optional backends are lazy factories, so `import qbm` stays dependency-free."""
+    import subprocess
+    import sys
+
+    code = (
+        "import sys, qbm; "
+        "print([m for m in ('qiskit','pennylane','jax','quimb') if m in sys.modules])"
+    )
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert out.stdout.strip() == "[]", out.stdout
+
+
+def test_builtin_executor_is_the_default():
+    from qbm.circuits.adapters import executor
+
+    c = Circuit(2)
+    c.h(0)
+    c.cx(0, 1)
+    assert np.allclose(executor("builtin")(c), simulator.run(c), atol=1e-12)
+
+
+def test_unknown_executor_raises():
+    from qbm.circuits.adapters import executor
+
+    with pytest.raises(KeyError, match="unknown executor"):
+        executor("not_an_sdk")
+
+
+@pytest.mark.parametrize("engine", ["qiskit", "pennylane"])
+def test_sdk_executors_agree_with_the_builtin_one(engine):
+    pytest.importorskip(engine)
+    from qbm.circuits.adapters import executor
+
+    c = Circuit(3)
+    c.h(0)
+    c.cx(0, 1)
+    c.ry(0.4, 2)
+    c.cz(1, 2)
+    c.rz(0.7, 0)
+    assert np.allclose(executor(engine)(c), simulator.run(c), atol=1e-9)
+
+
+@pytest.mark.parametrize("engine", ["qiskit", "pennylane"])
+def test_whole_qbm_runs_through_an_sdk_executor(engine):
+    pytest.importorskip(engine)
+    from qbm.circuits.adapters import executor
+
+    ham, theta = _model(n=2)
+    dense = qbm.DenseBackend().thermal_state(ham, theta)
+    st = CircuitBackend(seed=0, executor=executor(engine)).thermal_state(ham, theta)
+    O = qbm.hamiltonians.tfim(2, g=1.2)
+    assert np.isclose(st.expect(O), dense.expect(O), atol=1e-9)
+    assert np.allclose(st.generator_expectations(), dense.generator_expectations(), atol=1e-9)

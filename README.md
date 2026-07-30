@@ -138,13 +138,20 @@ state = model.state()
 state.metric(AlphaZ(0.5, 1.0))        # information matrix from Hadamard tests
 state.resource_estimate()             # circuits and shots a device would need
 
-from qbm.circuits.adapters import to_qasm3, to_qiskit   # export anywhere
+from qbm.circuits.adapters import to_qasm3, to_qiskit, executor
+
+# swap the execution engine with one argument -- results are identical
+qbm.backends.circuit.CircuitBackend(executor=executor("qiskit"))
+qbm.backends.circuit.CircuitBackend(executor=executor("pennylane"))
 ```
 
 The algorithms are written in a small internal circuit IR, so **no quantum SDK is a
 dependency of the core**. Qiskit, PennyLane and OpenQASM 3 are ~100-line adapters — an
 SDK breaking change (Qiskit has removed `opflow`, moved `qiskit.algorithms` out of core,
 dropped `execute()` and revised its primitives twice) costs one file, not the library.
+This is enforced by tests: one asserts no SDK is imported outside `adapters/`, another
+that `import qbm` loads no SDK at all. Notebook 10 demonstrates it by blocking every SDK
+and running the full circuit pipeline anyway.
 
 Honest scope: expectations, generative gradients, sampling, the energy gradient and the
 information matrices are measurable. Entropy, `log Z`, free energy and the SDP dual
@@ -212,7 +219,7 @@ energy / marginal-NLL / sqRBM-NLL / free-energy / quantum-target-relative-entrop
 SDP-dual losses, plus autodiff of arbitrary density-matrix objectives; GD / Adam /
 quantum natural gradient; **arbitrary QFI metrics** (the α-z family plus user kernels,
 with Kubo–Mori / Fisher–Bures / Wigner–Yanase as special cases);
-barren-plateau diagnostics. **174 tests** across seven tiers — exact oracles, finite
+barren-plateau diagnostics. **182 tests** across seven tiers — exact oracles, finite
 differences, autodiff (~1e-15), cross-backend agreement, strong duality/KKT with an
 independent reference SDP solver, **four paper reproductions**
 ([`tests/reproductions/`](tests/reproductions)), Hypothesis property-based tests, and

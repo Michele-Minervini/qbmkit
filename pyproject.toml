@@ -40,6 +40,7 @@ dev = [
     "hypothesis>=6",
     "quimb>=1.7",
     "qiskit>=1.0",
+    "pennylane>=0.34",
     "matplotlib>=3.5",
     "nbclient",
     "nbformat",

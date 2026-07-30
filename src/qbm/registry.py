@@ -112,12 +112,20 @@ def register_builtins() -> None:
         ("statevector", backends.StatevectorBackend),
     ]:
         add("backend", name, obj)
-    try:  # optional extra
-        from .backends.jax_backend import JaxBackend
 
-        add("backend", "jax", JaxBackend)
-    except Exception:
-        pass
+    # Optional backends are registered as *lazy factories*: importing qbm must not pull
+    # in JAX or quimb (JAX alone costs ~0.25 s of import time, and the point of an
+    # optional dependency is that it is only paid for on use).
+    def _lazy_backend(name):
+        def factory(**kwargs):
+            return backends.get_backend(name, **kwargs)
+
+        factory.__name__ = f"{name}_backend"
+        factory.__doc__ = f"Lazily construct the {name!r} backend."
+        return factory
+
+    for name in ("jax", "tensor_network", "circuit"):
+        add("backend", name, _lazy_backend(name))
 
     from .facade import learn
 

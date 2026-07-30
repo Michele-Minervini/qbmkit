@@ -14,6 +14,7 @@ Guided notebooks that teach the theory of quantum Boltzmann machines alongside t
 | 7 | [`07_backends_and_purification.ipynb`](07_backends_and_purification.ipynb) | The backend seam; thermofield-double purification; statevector vs dense; shot noise and sample-complexity. |
 | 8 | [`08_jax_autodiff.ipynb`](08_jax_autodiff.ipynb) | The JAX backend; autodiff gradients/metrics validated against the analytic engine; training a novel loss with no hand-derived gradient. (needs `qbmkit[jax]`) |
 | 9 | [`09_alpha_z_metrics.ipynb`](09_alpha_z_metrics.ipynb) | **Choosing your geometry**: the α-z family of quantum Fisher information — one kernel containing Kubo–Mori, Fisher–Bures and Wigner–Yanase; the map of metrics and their monotone region; natural gradient under different geometries; custom kernels. |
+| 10 | [`10_swapping_circuit_emitters.ipynb`](10_swapping_circuit_emitters.ipynb) | **Not marrying an SDK**: the internal circuit IR, proof the core runs with every SDK blocked, and swapping between the built-in simulator / Qiskit / PennyLane / OpenQASM 3 emitters. |
 
 ## Running
 

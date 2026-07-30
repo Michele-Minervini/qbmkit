@@ -57,6 +57,22 @@ def _reorder(mat, k):
     return t.reshape(2**k, 2**k)
 
 
+def statevector_executor():
+    """An ``executor(circuit) -> statevector`` that runs through Qiskit.
+
+    Pass to ``CircuitBackend(executor=...)`` to route the *whole* QBM through Qiskit
+    instead of the built-in simulator.  Index conventions coincide (our qubit 0 maps to
+    Qiskit's most significant wire), so no reordering is needed -- the round-trip test
+    pins this.
+    """
+    from qiskit.quantum_info import Statevector
+
+    def run(circuit):
+        return np.asarray(Statevector(to_qiskit(circuit)).data)
+
+    return run
+
+
 def run_on_backend(circuit, backend, shots=1024, optimization_level=1):
     """Transpile and run on any Qiskit backend (Aer simulator or real hardware).
 

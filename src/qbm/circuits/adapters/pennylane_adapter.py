@@ -48,3 +48,25 @@ def to_pennylane(circuit):
                 raise ValueError(f"no PennyLane mapping for gate {name!r}")
 
     return apply
+
+
+def statevector_executor(device: str = "default.qubit"):
+    """An ``executor(circuit) -> statevector`` that runs through PennyLane.
+
+    Pass to ``CircuitBackend(executor=...)``.  PennyLane orders ``qml.state()`` with
+    wire 0 most significant, matching our IR, so no reordering is needed.
+    """
+    import pennylane as qml
+
+    def run(circuit):
+        dev = qml.device(device, wires=circuit.n_qubits)
+        apply = to_pennylane(circuit)
+
+        @qml.qnode(dev)
+        def node():
+            apply()
+            return qml.state()
+
+        return np.asarray(node())
+
+    return run
