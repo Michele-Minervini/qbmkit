@@ -6,7 +6,7 @@ Vendor SDKs are *emitters* of that IR, not dependencies of it -- see
 :mod:`qbm.circuits.adapters`.  An SDK breaking change therefore costs one adapter file.
 """
 
-from . import adapters, builder, densities, estimators, ir, simulator
+from . import adapters, builder, densities, estimators, ir, simulator, varqite
 from .builder import (
     evolution_unitary,
     gibbs_preparation,
@@ -17,6 +17,7 @@ from .builder import (
     trotter_evolution,
 )
 from .ir import Circuit, Gate
+from .varqite import PauliRotationAnsatz, prepare_gibbs, tfd_ansatz
 
 __all__ = [
     "ir",
@@ -25,8 +26,12 @@ __all__ = [
     "adapters",
     "densities",
     "estimators",
+    "varqite",
     "Circuit",
     "Gate",
+    "PauliRotationAnsatz",
+    "tfd_ansatz",
+    "prepare_gibbs",
     "state_preparation",
     "thermofield_double",
     "gibbs_preparation",

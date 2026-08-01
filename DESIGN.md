@@ -377,10 +377,28 @@ an exact oracle, and the suite (100+ tests) gates every change across seven tier
   engine to ~1e-6; **sample-based training** (`qbm.sampling`) with block-Gibbs
   chains and contrastive divergence, exact for commuting hidden units and a
   documented approximation otherwise; and the lazy-generator fix below.
-- **v0.9+ (next)** — circuit/hardware backend (PennyLane/Qiskit) with VarQITE/QITE
-  Gibbs preparation and Hadamard-test estimators; the full Gibbs-map (imaginary-time)
-  block sampler that removes the non-commuting CD bias; Petz–Tsallis loss;
-  metrology / Cramér–Rao module; docs site and PyPI release.
+- **v0.9 (done)** — the **circuit backend**: a vendor-neutral circuit IR with its own
+  statevector simulator, TFD state synthesis, Hadamard-test estimators for the energy
+  gradient and the α-z information matrices, and Qiskit / PennyLane / OpenQASM 3 as
+  thin *emitters*. No SDK is imported by the core — enforced by tests.
+- **v0.10 (done)** — **VarQITE** variational Gibbs preparation
+  (`qbm.circuits.varqite`, `gibbs_prep="varqite"`): McLachlan's variational principle
+  on the thermofield double, driven from expectation values only and emitted as
+  gate-level circuits that export to OpenQASM 3. Includes the *tilt-partner*
+  construction (exact for commuting Hamiltonians), the measured (Hadamard-test) route
+  for `A` and `C` validated against the exact route to ~1e-15, and the McLachlan
+  **residual** as a hardware-computable error diagnostic.
+- **v0.11+ (next)** — the full Gibbs-map (imaginary-time) block sampler that removes
+  the non-commuting CD bias; Petz–Tsallis loss; metrology / Cramér–Rao module; docs
+  site and PyPI release.
+
+**Preparation note (v0.10).** The circuit backend now has two Gibbs-preparation
+strategies and they answer different questions. `"exact"` synthesises the TFD
+amplitudes from `eigh(G)` into one opaque `unitary`; it is *not* a quantum algorithm,
+but it isolates estimator error from preparation error, which is what the α-z /
+gradient tests need. `"varqite"` is the algorithm: only expectation values, only gates.
+Neither subsumes the other, so both ship, and `resource_estimate()` reports the
+`O(L^2)`-circuits-per-time-step cost of the variational route up front.
 
 **Scaling note (v0.8).** `ParamHamiltonian` materialises Pauli generators
 **lazily**. Building them eagerly costs `n_params * 4^n` complex entries, which caps

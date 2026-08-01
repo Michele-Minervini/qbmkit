@@ -12,15 +12,19 @@ alpha-z / Kubo-Mori family of information matrices.  Quantities that need the *s
 of ``rho`` (entropy, ``log Z``, and hence free energy and the SDP dual) are not
 measurable this way and raise a clear error; use ``backend="dense"`` for those.
 
-Gibbs preparation strategies:
+Gibbs preparation strategies (``gibbs_prep=``):
 
 ``"exact"`` (default)
     Synthesise the TFD amplitudes into a state-preparation unitary.  Exact, so the
-    circuit *estimators* can be validated independently of preparation error.  This is
-    also what a small hardware demonstration would use.
+    circuit *estimators* can be validated independently of preparation error -- but it
+    needs the eigendecomposition of ``G(theta)``, and it emits one opaque ``unitary``
+    instruction rather than gates.
 ``"varqite"``
-    Variational imaginary-time preparation -- the scalable route, and the open research
-    problem.  Not implemented; documented as the extension point.
+    Variational imaginary-time preparation (:mod:`qbm.circuits.varqite`).  Approximate,
+    but built only from expectation values and emitted as an ordinary gate sequence, so
+    it is the route that runs on a device.  Tune it with
+    ``varqite_options={"depth": ..., "steps": ...}`` and read
+    ``state.varqite_result().report()`` for the preparation error.
 """
 
 from __future__ import annotations
@@ -35,14 +39,26 @@ from ..metrics.monotone import mc_weight
 class CircuitThermalState:
     """Thermal state realised by a circuit and read out by measurement."""
 
-    def __init__(self, ham, theta, shots=None, rng=None, gibbs_prep="exact", executor=None):
-        if gibbs_prep != "exact":
-            raise NotImplementedError(
-                f"Gibbs preparation strategy {gibbs_prep!r} is not implemented. Only "
-                "'exact' (TFD state synthesis) is available; variational preparation "
-                "(VarQITE/QITE) is the documented extension point and an open research "
-                "problem on hardware."
+    #: defaults for ``gibbs_prep="varqite"``; override with ``varqite_options``
+    VARQITE_DEFAULTS = {"depth": 3, "steps": 100}
+
+    def __init__(
+        self,
+        ham,
+        theta,
+        shots=None,
+        rng=None,
+        gibbs_prep="exact",
+        executor=None,
+        varqite_options=None,
+    ):
+        if gibbs_prep not in ("exact", "varqite"):
+            raise ValueError(
+                f"unknown Gibbs preparation strategy {gibbs_prep!r}; use 'exact' (TFD "
+                "state synthesis) or 'varqite' (variational imaginary-time evolution)"
             )
+        self.varqite_options = {**self.VARQITE_DEFAULTS, **(varqite_options or {})}
+        self._varqite = None
         self.ham = ham
         self.theta = np.asarray(theta, dtype=float)
         self.n_qubits = ham.n_qubits
@@ -55,8 +71,28 @@ class CircuitThermalState:
         self._rho = None
 
     # -- circuits ----------------------------------------------------------
+    def varqite_result(self):
+        """The cached :class:`~qbm.circuits.varqite.VarQITEResult` behind this state.
+
+        Only available with ``gibbs_prep="varqite"``.  Carries the preparation error --
+        ``.residual`` (measurable) and ``.trace_distance()`` (simulation-only).
+        """
+        if self.gibbs_prep != "varqite":
+            raise ValueError("varqite_result() needs gibbs_prep='varqite'")
+        if self._varqite is None:
+            from ..circuits import varqite
+
+            self._varqite = varqite.prepare_gibbs(
+                self.ham, self.theta, beta=1.0, **self.varqite_options
+            )
+        return self._varqite
+
     def preparation_circuit(self, ancilla_offset=0):
         """The circuit preparing the TFD purification of ``rho(theta)``."""
+        if self.gibbs_prep == "varqite":
+            return self.varqite_result().circuit(
+                offset=ancilla_offset, n_qubits=2 * self.n_qubits + ancilla_offset
+            )
         return builder.gibbs_preparation(self.ham, self.theta, ancilla_offset=ancilla_offset)
 
     def statevector(self):
@@ -144,7 +180,7 @@ class CircuitThermalState:
         J = self.ham.n_params
         prep = self.preparation_circuit(ancilla_offset=1)
         shots = self.shots or 0
-        return {
+        out = {
             "n_qubits": 2 * self.n_qubits + 1,
             "prep_gates": len(prep.gates),
             "prep_depth": prep.depth,
@@ -154,6 +190,10 @@ class CircuitThermalState:
             "shots_per_gradient": J * n_time_samples * shots,
             "shots_per_metric": J * (J + 1) // 2 * n_time_samples * shots,
         }
+        if self.gibbs_prep == "varqite":
+            vq = self.varqite_result().resource_estimate(n_hamiltonian_terms=J)
+            out["circuits_for_preparation"] = vq["circuits_total"]
+        return out
 
 
 class CircuitBackend:
@@ -161,10 +201,13 @@ class CircuitBackend:
 
     name = "circuit"
 
-    def __init__(self, shots=None, seed=None, gibbs_prep="exact", executor=None):
+    def __init__(
+        self, shots=None, seed=None, gibbs_prep="exact", executor=None, varqite_options=None
+    ):
         self.shots = shots
         self.gibbs_prep = gibbs_prep
         self.executor = executor
+        self.varqite_options = varqite_options
         self._rng = np.random.default_rng(seed)
 
     def thermal_state(self, ham, theta) -> CircuitThermalState:
@@ -175,6 +218,7 @@ class CircuitBackend:
             rng=self._rng,
             gibbs_prep=self.gibbs_prep,
             executor=self.executor,
+            varqite_options=self.varqite_options,
         )
 
     def __repr__(self) -> str:

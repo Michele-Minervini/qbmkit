@@ -96,10 +96,10 @@ def test_spectrum_dependent_quantities_are_refused():
             call()
 
 
-def test_unimplemented_gibbs_strategy_is_explicit():
+def test_unknown_gibbs_strategy_is_explicit():
     ham, theta = _model()
-    with pytest.raises(NotImplementedError, match="varqite"):
-        CircuitBackend(gibbs_prep="varqite").thermal_state(ham, theta)
+    with pytest.raises(ValueError, match="unknown Gibbs preparation strategy"):
+        CircuitBackend(gibbs_prep="qite").thermal_state(ham, theta)
 
 
 def test_resource_estimate_reports_costs():

@@ -99,6 +99,10 @@ Guided Jupyter notebooks (theory + code + plots) live in [`notebooks/`](notebook
 5. **Semi-quantum RBMs** — closed-form fast path; quantum vs classical expressivity; learning quantum states.
 6. **Evolved QBM** — real-time evolution on top of the Gibbs state; extra expressivity; the (θ, φ) quantum Fisher information.
 7. **Backends & purification** — the backend seam; thermofield-double purification; statevector vs dense; shot noise and sample-complexity.
+8. **JAX autodiff** — autodiff gradients/metrics validated against the analytic engine; training a loss with no hand-derived gradient.
+9. **Arbitrary QFI metrics** — the α-z family; the map of metrics; natural gradient under different geometries.
+10. **Swapping circuit emitters** — the internal IR; the core running with every SDK blocked; QASM 3 / Qiskit / PennyLane.
+11. **VarQITE Gibbs preparation** — preparing ρ(θ) on a device from expectation values only, and how to tell when it worked.
 
 ```bash
 pip install -e ".[notebooks]"
@@ -123,9 +127,10 @@ run on any backend:
 - **`circuit`** — runs the QBM through **actual quantum circuits**: the thermal state is
   prepared as a thermofield-double purification and every quantity is obtained by
   *measurement*, with an optional shot budget. Includes Hadamard-test estimators for the
-  energy gradient and the α-z / Kubo–Mori information matrices — the hardware route.
-  Needs **no vendor SDK**: circuits live in an internal IR run by our own simulator, with
-  **OpenQASM 3**, Qiskit and PennyLane as thin *emitters* (`pip install qbmkit[circuit]`).
+  energy gradient and the α-z / Kubo–Mori information matrices, and **VarQITE**
+  variational Gibbs preparation — the hardware route. Needs **no vendor SDK**: circuits
+  live in an internal IR run by our own simulator, with **OpenQASM 3**, Qiskit and
+  PennyLane as thin *emitters* (`pip install qbmkit[circuit]`).
 
 ## Running on quantum circuits and hardware
 
@@ -153,13 +158,38 @@ This is enforced by tests: one asserts no SDK is imported outside `adapters/`, a
 that `import qbm` loads no SDK at all. Notebook 10 demonstrates it by blocking every SDK
 and running the full circuit pipeline anyway.
 
+### Variational Gibbs preparation (VarQITE)
+
+Exact TFD synthesis needs `eigh(G)` and emits one opaque unitary — useful for validating
+the estimators, but not a quantum algorithm. **VarQITE** prepares ρ(θ) from *expectation
+values only*, and emits ordinary gates:
+
+```python
+from qbm.circuits import varqite
+
+res = varqite.prepare_gibbs(H, beta=1.0, depth=3)   # or (ham, theta)
+res.report()                 # energy, McLachlan residual, and (in simulation) the error
+res.circuit()                # gate-level -- exports to OpenQASM 3
+res.resource_estimate()      # circuits per time step, honestly
+
+model = qbm.FullyVisibleQBM(n=3, backend="circuit")            # exact TFD synthesis
+qbm.backends.circuit.CircuitBackend(gibbs_prep="varqite")      # the device route
+```
+
+It runs McLachlan's variational principle on the thermofield double — `A λ̇ = C` with
+`A` the quantum geometric tensor and `C = −½∇⟨H⟩`, i.e. **quantum natural gradient
+flow** — starting from Bell pairs (the β = 0 TFD) and flowing to τ = β/2. The ansatz is
+built from *tilt partners* of the Hamiltonian's Pauli terms, which makes it **exact for
+commuting Hamiltonians** and systematically improvable otherwise. `A` and `C` are also
+implemented as Hadamard tests, checked against the exact route to ~1e-15. The reported
+**McLachlan residual** is a genuine error bar: computable from measurements, so it works
+where fidelity does not. See [notebook 11](notebooks/11_varqite_gibbs_preparation.ipynb).
+
 Honest scope: expectations, generative gradients, sampling, the energy gradient and the
 information matrices are measurable. Entropy, `log Z`, free energy and the SDP dual
 depend on the *spectrum* of ρ, which a device does not expose — those raise a clear
-error and belong on `backend="dense"`. Gibbs-state preparation is exact here (TFD
-synthesis) so the estimators can be validated; variational preparation on real hardware
-remains an open research problem, and `resource_estimate()` reports the shot cost up
-front.
+error and belong on `backend="dense"`. VarQITE costs `O(L²)` circuits per time step for
+`L` ansatz rotations; `resource_estimate()` reports that and the shot cost up front.
 
 ## Arbitrary quantum Fisher information metrics
 
@@ -210,16 +240,17 @@ changes anywhere else — see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Status
 
-v0.8 — one-call **task layer** (generative, ground state, state learning,
+v0.10 — one-call **task layer** (generative, ground state, state learning,
 free energy, **SDP**); dense + statevector (TFD purification + shots) + **JAX
-autodiff** + **tensor-network** backends behind a registry seam; sample-based
+autodiff** + **tensor-network** + **circuit** backends behind a registry seam,
+with **VarQITE** variational Gibbs preparation on the circuit route; sample-based
 training (block-Gibbs / contrastive divergence); fully-visible, visible+hidden,
 **semi-quantum RBM** (closed-form) and **Evolved QBM** models; relative-entropy /
 energy / marginal-NLL / sqRBM-NLL / free-energy / quantum-target-relative-entropy /
 SDP-dual losses, plus autodiff of arbitrary density-matrix objectives; GD / Adam /
 quantum natural gradient; **arbitrary QFI metrics** (the α-z family plus user kernels,
 with Kubo–Mori / Fisher–Bures / Wigner–Yanase as special cases);
-barren-plateau diagnostics. **182 tests** across seven tiers — exact oracles, finite
+barren-plateau diagnostics. **233 tests** across seven tiers — exact oracles, finite
 differences, autodiff (~1e-15), cross-backend agreement, strong duality/KKT with an
 independent reference SDP solver, **four paper reproductions**
 ([`tests/reproductions/`](tests/reproductions)), Hypothesis property-based tests, and
