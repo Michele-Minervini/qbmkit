@@ -31,7 +31,9 @@ dependencies = [
 jax = ["jax>=0.4", "jaxlib>=0.4"]
 tn = ["quimb>=1.7"]
 circuit = ["qiskit>=1.0"]
-pennylane = ["pennylane>=0.34"]
+# PennyLane dropped Python 3.9; without the marker pip back-solves to a release that
+# predates the current `autoray` API and fails on import.
+pennylane = ["pennylane>=0.34; python_version >= '3.10'"]
 notebooks = ["matplotlib>=3.5", "jupyter", "nbformat", "nbclient"]
 dev = [
     "pytest>=7",
@@ -40,7 +42,7 @@ dev = [
     "hypothesis>=6",
     "quimb>=1.7",
     "qiskit>=1.0",
-    "pennylane>=0.34",
+    "pennylane>=0.34; python_version >= '3.10'",
     "matplotlib>=3.5",
     "nbclient",
     "nbformat",

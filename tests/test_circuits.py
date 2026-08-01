@@ -20,6 +20,18 @@ def _model(n=3, seed=0, scale=0.4):
     return ham, theta
 
 
+def _require_adapter(engine):
+    """Skip unless the SDK is actually *usable*, not merely present.
+
+    ``pytest.importorskip`` only catches ``ImportError``, so an SDK that installs but
+    breaks on import (e.g. a PennyLane / autoray version mismatch) errors the suite.
+    The library's own capability probe treats any failure as unavailable -- reusing it
+    here keeps the tests honest about the environment instead of red because of it.
+    """
+    if engine not in available_adapters():
+        pytest.skip(f"{engine} is installed but not usable in this environment")
+
+
 # ---------------------------------------------------------------------------
 # Tier 1 -- IR, simulator, and the circuit backend
 # ---------------------------------------------------------------------------
@@ -288,7 +300,7 @@ def test_unknown_executor_raises():
 
 @pytest.mark.parametrize("engine", ["qiskit", "pennylane"])
 def test_sdk_executors_agree_with_the_builtin_one(engine):
-    pytest.importorskip(engine)
+    _require_adapter(engine)
     from qbm.circuits.adapters import executor
 
     c = Circuit(3)
@@ -302,7 +314,7 @@ def test_sdk_executors_agree_with_the_builtin_one(engine):
 
 @pytest.mark.parametrize("engine", ["qiskit", "pennylane"])
 def test_whole_qbm_runs_through_an_sdk_executor(engine):
-    pytest.importorskip(engine)
+    _require_adapter(engine)
     from qbm.circuits.adapters import executor
 
     ham, theta = _model(n=2)
