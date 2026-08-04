@@ -388,9 +388,24 @@ an exact oracle, and the suite (100+ tests) gates every change across seven tier
   construction (exact for commuting Hamiltonians), the measured (Hadamard-test) route
   for `A` and `C` validated against the exact route to ~1e-15, and the McLachlan
   **residual** as a hardware-computable error diagnostic.
+- **v0.10.1 (done)** — **end-to-end training on variationally prepared states**:
+  `qbm.learn(..., backend=CircuitBackend(gibbs_prep="varqite"))` rebuilds `rho(theta)`
+  with VarQITE at every optimisation step. `fit` gained `monitor=` (a measurable
+  training curve, since the relative-entropy *value* needs `log Z` and is refused —
+  recorded as `nan` — while its *gradient* is pure expectation values) and `stop=`
+  (halt on any measurable condition, e.g. the McLachlan residual).
 - **v0.11+ (next)** — the full Gibbs-map (imaginary-time) block sampler that removes
   the non-commuting CD bias; Petz–Tsallis loss; metrology / Cramér–Rao module; docs
   site and PyPI release.
+
+**Training note (v0.10.1).** Device-native training exposes an asymmetry worth stating
+plainly: **the gradient is measurable but the loss value often is not.** The generative
+gradient is `<G_j>_data - <G_j>_model`; its relative-entropy value needs `log Z`. So
+`fit` records `nan` for a refused value, keeps descending, and reports a measurable
+`monitor` instead. The second lesson is that an approximate state feeds back into its
+own optimisation: ground-state objectives drive `beta -> infinity`, degrading the
+preparation until the gradient it produces destabilises the run. The McLachlan residual
+crosses ~0.1 *before* the energy turns, so `stop=` on it is a working guard.
 
 **Preparation note (v0.10).** The circuit backend now has two Gibbs-preparation
 strategies and they answer different questions. `"exact"` synthesises the TFD

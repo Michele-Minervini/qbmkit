@@ -373,3 +373,93 @@ def test_resource_estimate_includes_the_preparation_cost():
     r = st.resource_estimate()
     assert r["circuits_for_preparation"] > 0
     assert r["prep_gates"] > 0
+
+
+# ---------------------------------------------------------------------------
+# end-to-end training on variationally prepared states
+# ---------------------------------------------------------------------------
+def _varqite_backend(depth=3, steps=40, shots=None, seed=0):
+    from qbm.backends.circuit import CircuitBackend
+
+    return CircuitBackend(
+        seed=seed,
+        shots=shots,
+        gibbs_prep="varqite",
+        varqite_options={"depth": depth, "steps": steps},
+    )
+
+
+def test_generative_training_on_varqite_states_matches_dense_training():
+    """The headline: a full QBM trained with no eigendecomposition in the loop."""
+    q = np.array([0.50, 0.20, 0.05, 0.25])
+    trained = qbm.learn(q, steps=40, lr=0.15, backend=_varqite_backend())
+    reference = qbm.learn(q, steps=40, lr=0.15)
+    assert trained.history.monitor[-1] < 5e-3  # actually learned the distribution
+    assert np.allclose(trained.probabilities(), q, atol=2e-2)
+    # the two runs land on the same model (the KL at any single step oscillates under
+    # Adam, so compare the trained distributions rather than a point on the curve)
+    assert np.allclose(trained.probabilities(), reference.probabilities(), atol=5e-3)
+    assert np.allclose(trained.theta, reference.theta, atol=5e-2)
+
+
+def test_unmeasurable_loss_values_become_nan_but_training_continues():
+    """The relative-entropy value needs log Z; the gradient does not."""
+    q = np.array([0.50, 0.20, 0.05, 0.25])
+    trained = qbm.learn(q, steps=12, lr=0.15, backend=_varqite_backend(depth=1, steps=15))
+    assert np.all(np.isnan(trained.history.loss))
+    assert len(trained.history.monitor) == 12
+    assert trained.history.monitor[-1] < trained.history.monitor[0]
+
+
+def test_ground_state_training_is_guarded_by_the_residual():
+    """Ground-state search drives beta -> infinity, where preparation degrades.
+
+    Unguarded, the bad gradient eventually destabilises the run; a `stop` predicate on
+    the (measurable) preparation error halts while the answer is still good.
+    """
+    from qbm.losses import Energy
+
+    H = qbm.hamiltonians.tfim(2, J=1.0, g=1.2)
+    E0 = np.linalg.eigvalsh(H)[0]
+
+    def run(stop=None):
+        m = qbm.FullyVisibleQBM(n=2, connectivity="all", backend=_varqite_backend())
+        m.theta = np.random.default_rng(0).normal(scale=0.05, size=m.n_params)
+        return qbm.fit(m, Energy(H), qbm.optim.Adam(lr=0.2), steps=150, stop=stop)
+
+    loose = run()
+    guarded = run(stop=lambda s, m: s.varqite_result().residual > 0.05)
+
+    assert len(guarded) < 150  # the guard fired
+    assert abs(guarded.loss[-1] - E0) < 5e-2  # and it stopped somewhere sensible
+    assert abs(guarded.loss[-1] - E0) < abs(loose.loss[-1] - E0)  # better than not guarding
+
+
+def test_fit_monitor_and_stop_are_optional_and_backward_compatible():
+    from qbm.losses import Energy
+
+    H = qbm.hamiltonians.tfim(2, J=1.0, g=1.0)
+    m = qbm.FullyVisibleQBM(n=2, connectivity="all")
+    plain = qbm.fit(m, Energy(H), qbm.optim.GradientDescent(lr=0.1), steps=5)
+    assert plain.monitor == [] and len(plain) == 5
+
+    m2 = qbm.FullyVisibleQBM(n=2, connectivity="all")
+    tracked = qbm.fit(
+        m2,
+        Energy(H),
+        qbm.optim.GradientDescent(lr=0.1),
+        steps=5,
+        monitor=lambda s, mo: float(np.linalg.norm(mo.theta)),
+        stop=lambda s, mo: False,
+    )
+    assert len(tracked.monitor) == 5 and len(tracked) == 5
+
+    m3 = qbm.FullyVisibleQBM(n=2, connectivity="all")
+    halted = qbm.fit(
+        m3,
+        Energy(H),
+        qbm.optim.GradientDescent(lr=0.1),
+        steps=50,
+        stop=lambda s, mo: True,
+    )
+    assert len(halted) == 1

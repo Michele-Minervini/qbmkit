@@ -103,6 +103,7 @@ Guided Jupyter notebooks (theory + code + plots) live in [`notebooks/`](notebook
 9. **Arbitrary QFI metrics** — the α-z family; the map of metrics; natural gradient under different geometries.
 10. **Swapping circuit emitters** — the internal IR; the core running with every SDK blocked; QASM 3 / Qiskit / PennyLane.
 11. **VarQITE Gibbs preparation** — preparing ρ(θ) on a device from expectation values only, and how to tell when it worked.
+12. **Training end-to-end with VarQITE** — the full device-native loop, shot noise, and the residual guard.
 
 ```bash
 pip install -e ".[notebooks]"
@@ -185,6 +186,19 @@ implemented as Hadamard tests, checked against the exact route to ~1e-15. The re
 **McLachlan residual** is a genuine error bar: computable from measurements, so it works
 where fidelity does not. See [notebook 11](notebooks/11_varqite_gibbs_preparation.ipynb).
 
+The whole training loop runs on it — no eigendecomposition anywhere:
+
+```python
+model = qbm.learn(data, backend=CircuitBackend(gibbs_prep="varqite"), steps=60)
+```
+
+On classical generative targets that is indistinguishable from exact training (the model
+flows to a commuting Hamiltonian, where the ansatz is exact) and it survives shot noise.
+Objectives that drive β → ∞, like ground-state search, degrade the preparation as they
+go; guard them on the same measurable residual —
+`qbm.fit(..., stop=lambda s, m: s.varqite_result().residual > 0.05)`. Worked through in
+[notebook 12](notebooks/12_training_a_qbm_with_varqite.ipynb).
+
 Honest scope: expectations, generative gradients, sampling, the energy gradient and the
 information matrices are measurable. Entropy, `log Z`, free energy and the SDP dual
 depend on the *spectrum* of ρ, which a device does not expose — those raise a clear
@@ -250,7 +264,7 @@ energy / marginal-NLL / sqRBM-NLL / free-energy / quantum-target-relative-entrop
 SDP-dual losses, plus autodiff of arbitrary density-matrix objectives; GD / Adam /
 quantum natural gradient; **arbitrary QFI metrics** (the α-z family plus user kernels,
 with Kubo–Mori / Fisher–Bures / Wigner–Yanase as special cases);
-barren-plateau diagnostics. **233 tests** across seven tiers — exact oracles, finite
+barren-plateau diagnostics. **237 tests** across seven tiers — exact oracles, finite
 differences, autodiff (~1e-15), cross-backend agreement, strong duality/KKT with an
 independent reference SDP solver, **four paper reproductions**
 ([`tests/reproductions/`](tests/reproductions)), Hypothesis property-based tests, and

@@ -39,10 +39,12 @@ def learn(
     lr: float = 0.1,
     optimizer=None,
     model=None,
+    backend=None,
     connectivity: str = "all",
     init_scale: float = 0.05,
     seed: int = 0,
     verbose=False,
+    monitor="auto",
 ):
     """Train a fully-visible QBM to reproduce a classical distribution.
 
@@ -51,10 +53,19 @@ def learn(
     data : array
         Probability vector over ``2^n`` outcomes, or integer samples.
     steps, lr : training budget and learning rate.
+    backend : str | Backend, optional
+        Engine that builds ``rho(theta)`` each step -- e.g.
+        ``CircuitBackend(gibbs_prep="varqite")`` to train on variationally prepared
+        thermal states.  Defaults to the exact dense engine.
     connectivity : {"all", "chain"}
         Two-body coupling topology of the default model. ``"all"`` (all-to-all)
         is the strong default for generic targets; ``"chain"`` for 1-D structure.
     optimizer, model : optional overrides.
+    monitor : {"auto"} | callable | None
+        Recorded into ``model.history.monitor`` each step.  ``"auto"`` tracks the
+        measured KL divergence ``D(q || p_model)`` -- the training curve that stays
+        available on a measurement backend, where the relative-entropy *value* (which
+        needs ``log Z``) does not.
 
     Returns
     -------
@@ -66,12 +77,22 @@ def learn(
     if (1 << n) != len(q):
         raise ValueError("distribution length must be a power of two")
     if model is None:
-        model = FullyVisibleQBM(n=n, connectivity=connectivity)
+        model = FullyVisibleQBM(n=n, connectivity=connectivity, backend=backend)
         # small random init breaks symmetry saddles (e.g. flip-symmetric targets)
         model.theta = np.random.default_rng(seed).normal(scale=init_scale, size=model.n_params)
     if optimizer is None:
         optimizer = Adam(lr=lr)
+    if monitor == "auto":
+
+        def monitor(state, mdl):
+            return mdl.kl(q)
+
     model.history = fit(
-        model, RelativeEntropy(np.diag(q.astype(complex))), optimizer, steps=steps, verbose=verbose
+        model,
+        RelativeEntropy(np.diag(q.astype(complex))),
+        optimizer,
+        steps=steps,
+        verbose=verbose,
+        monitor=monitor,
     )
     return model

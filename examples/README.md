@@ -12,16 +12,17 @@ Run any of them with `python examples/<file>.py` (from the repo root, in the ven
 | 05 | [`05_semidefinite_program.py`](05_semidefinite_program.py) | Solve an SDP through the QBM core (unconstrained + constrained) | strong duality to ~1e-15 |
 | 06 | [`06_tensor_network_scaling.py`](06_tensor_network_scaling.py) | Purified-MPS backend past the dense ceiling (needs `[tn]`) | n=20 in ~1 s; matches dense to 1e-6 |
 | 07 | [`07_varqite_gibbs_preparation.py`](07_varqite_gibbs_preparation.py) | Variational Gibbs preparation from expectation values only | exact for commuting H; Hadamard route to 1e-15 |
+| 08 | [`08_training_with_varqite.py`](08_training_with_varqite.py) | Full QBM training on variationally prepared states (+ shot noise, + the residual guard) | KL matches exact training to 3e-4 |
 
 ## Visual gallery (notebooks)
 
-The [`../notebooks/`](../notebooks) directory holds eleven guided tutorials that teach
+The [`../notebooks/`](../notebooks) directory holds twelve guided tutorials that teach
 the theory alongside the code, **with plots** (they render directly on GitHub):
 
 theory & first QBM · generative modelling · ground state & natural gradient ·
 barren plateaus · semi-quantum RBMs · evolved QBM · backends & purification ·
 JAX autodiff · arbitrary α-z QFI metrics · swapping circuit emitters ·
-VarQITE Gibbs preparation.
+VarQITE Gibbs preparation · end-to-end training on variational states.
 
 ## Benchmarks
 
