@@ -233,7 +233,10 @@ Hamiltonian term, `P → cosh(2θ)P − sinh(2θ)PG`; anticommuting terms pass t
 **exact for commuting (classical) Hamiltonians**, first-order-Trotter otherwise, and
 **topology-agnostic** — an all-to-all Hamiltonian costs no more than a chain, where a
 tensor network would pay for the entanglement. The sum is kept sparse by discarding
-small-coefficient / high-weight terms, which trades retained terms for accuracy.
+small-coefficient (`coeff_cutoff`) or high-weight (`max_weight`) terms, which trades
+retained terms for accuracy — moderate truncation reaches full training accuracy at a
+fraction of the terms, and notebook 13 maps the cost/accuracy frontier of both knobs
+across a training run (coefficient truncation dominates for densely-connected targets).
 
 Truncation can push ρ outside the positive cone, so its basis "probabilities" may go
 slightly negative. The **locally normalised sampler** of *Sampling from Thermal Quantum
@@ -308,7 +311,7 @@ energy / marginal-NLL / sqRBM-NLL / free-energy / quantum-target-relative-entrop
 SDP-dual losses, plus autodiff of arbitrary density-matrix objectives; GD / Adam /
 quantum natural gradient; **arbitrary QFI metrics** (the α-z family plus user kernels,
 with Kubo–Mori / Fisher–Bures / Wigner–Yanase as special cases);
-barren-plateau diagnostics. **270 tests** across seven tiers — exact oracles, finite
+barren-plateau diagnostics. **271 tests** across seven tiers — exact oracles, finite
 differences, autodiff (~1e-15), cross-backend agreement, strong duality/KKT with an
 independent reference SDP solver, **four paper reproductions**
 ([`tests/reproductions/`](tests/reproductions)), Hypothesis property-based tests, and

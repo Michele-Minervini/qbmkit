@@ -255,3 +255,39 @@ def test_resource_estimate_reports_the_term_count():
     assert est["retained_pauli_terms"] > 0
     assert est["trotter_steps"] == 16
     assert est["n_qubits"] == 3
+
+
+def test_truncation_trades_retained_terms_for_training_accuracy():
+    """The whole point of the method: looser truncation is cheaper but trains worse.
+
+    A moderate cutoff should reach (nearly) the same KL as a near-untruncated run while
+    retaining fewer Pauli strings; a very aggressive cutoff should do measurably worse.
+    """
+    target = qbm.FullyVisibleQBM(n=4, connectivity="all")
+    target.theta = np.random.default_rng(11).normal(scale=0.7, size=target.n_params)
+    q = target.probabilities()
+    mask = q > 0
+
+    def train(cutoff):
+        model = qbm.learn(
+            q,
+            steps=70,
+            connectivity="all",
+            optimizer=qbm.optim.GradientDescent(lr=0.1, clip=1.0),
+            backend=PauliPropagationBackend(trotter_steps=24, coeff_cutoff=cutoff, seed=0),
+        )
+        p = np.clip(model.probabilities(), 1e-300, None)
+        final_kl = float(np.sum(q[mask] * (np.log(q[mask]) - np.log(p[mask]))))
+        return final_kl, model.state().n_terms
+
+    kl_moderate, terms_moderate = train(1e-3)
+    kl_tight, terms_tight = train(1e-6)
+    kl_aggressive, terms_aggressive = train(3e-1)
+
+    # moderate truncation: essentially full accuracy, at a real term saving
+    assert kl_moderate < 5e-2
+    assert kl_moderate < 3 * kl_tight
+    assert terms_moderate < terms_tight
+    # aggressive truncation: cheaper still, but clearly worse training
+    assert terms_aggressive < terms_moderate
+    assert kl_aggressive > 10 * kl_moderate
