@@ -17,6 +17,7 @@ Guided notebooks that teach the theory of quantum Boltzmann machines alongside t
 | 10 | [`10_swapping_circuit_emitters.ipynb`](10_swapping_circuit_emitters.ipynb) | **Not marrying an SDK**: the internal circuit IR, proof the core runs with every SDK blocked, and swapping between the built-in simulator / Qiskit / PennyLane / OpenQASM 3 emitters. |
 | 11 | [`11_varqite_gibbs_preparation.ipynb`](11_varqite_gibbs_preparation.ipynb) | **Preparing the Gibbs state on a device**: VarQITE — imaginary time via McLachlan's principle, the tilt-partner ansatz, the measurable residual as an error bar, and a variationally prepared QBM that still does gradients and metrics. |
 | 12 | [`12_training_a_qbm_with_varqite.ipynb`](12_training_a_qbm_with_varqite.ipynb) | **Training end-to-end on variational states**: the full device-native loop — what is and isn't measurable, generative modelling under shot noise, and why ground-state search needs a residual guard. |
+| 13 | [`13_pauli_propagation_qbm.ipynb`](13_pauli_propagation_qbm.ipynb) | **Pauli propagation**: the thermal state as a sparse Pauli sum evolved under imaginary time; exact for commuting Hamiltonians, topology-agnostic; the locally normalised sampler with exact likelihoods; and training a QBM for generative modelling in the Pauli basis. |
 
 ## Running
 

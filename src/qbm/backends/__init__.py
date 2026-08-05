@@ -50,6 +50,10 @@ def get_backend(backend=None, **kwargs):
             from .circuit import CircuitBackend
 
             return CircuitBackend(**kwargs)
+        if backend in ("pauli_propagation", "pauli"):
+            from .pauli_propagation import PauliPropagationBackend
+
+            return PauliPropagationBackend(**kwargs)
         avail = ", ".join(available_backends())
         raise KeyError(f"unknown backend {backend!r}; available: {avail}")
     return backend
@@ -62,7 +66,7 @@ def register_backend(name, factory):
 
 def available_backends():
     """Backend names usable in this environment (optional extras included if installed)."""
-    names = set(_REGISTRY) | {"circuit"}  # circuit backend needs no external SDK
+    names = set(_REGISTRY) | {"circuit", "pauli_propagation"}  # neither needs an external SDK
     for module, name in (("jax", "jax"), ("quimb", "tensor_network")):
         try:
             __import__(module)

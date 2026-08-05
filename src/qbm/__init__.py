@@ -16,7 +16,18 @@ channel.  See DESIGN.md.
 
 from __future__ import annotations
 
-from . import circuits, data, diagnostics, losses, metrics, optim, purification, sampling, tasks
+from . import (
+    circuits,
+    data,
+    diagnostics,
+    losses,
+    metrics,
+    optim,
+    pauli_prop,
+    purification,
+    sampling,
+    tasks,
+)
 from .backends import (
     Backend,
     DenseBackend,
@@ -83,6 +94,7 @@ __all__ = [
     "available_backends",
     "purification",
     "sampling",
+    "pauli_prop",
     "circuits",
     "losses",
     "metrics",

@@ -124,7 +124,7 @@ def register_builtins() -> None:
         factory.__doc__ = f"Lazily construct the {name!r} backend."
         return factory
 
-    for name in ("jax", "tensor_network", "circuit"):
+    for name in ("jax", "tensor_network", "circuit", "pauli_propagation"):
         add("backend", name, _lazy_backend(name))
 
     from .facade import learn

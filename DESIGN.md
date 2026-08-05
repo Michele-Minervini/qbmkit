@@ -59,7 +59,7 @@ facade            qbm.learn(...) / qbm.fit(...)          <- 5-line beginner surf
 tasks             generative / ground_state / state_learning / sdp / barren_plateau
 primitives        models | losses | metrics (QFI) | optimizers
 core              ParamHamiltonian, ThermalState, Phi_theta   <- the unifying substrate
-backend seam      Backend Protocol  (dense | tensor-network | circuit/hardware)
+backend seam      Backend Protocol  (dense | tensor-network | circuit/hardware | pauli-propagation)
 ```
 
 Rules:
@@ -394,9 +394,31 @@ an exact oracle, and the suite (100+ tests) gates every change across seven tier
   training curve, since the relative-entropy *value* needs `log Z` and is refused —
   recorded as `nan` — while its *gradient* is pure expectation values) and `stop=`
   (halt on any measurable condition, e.g. the McLachlan residual).
-- **v0.11+ (next)** — the full Gibbs-map (imaginary-time) block sampler that removes
+- **v0.11 (done)** — **Pauli-propagation backend** (`qbm.pauli_prop`,
+  `backend="pauli_propagation"`): the thermal state as a sparse sum of Pauli strings
+  evolved under imaginary time (arXiv:2602.04878), with the imaginary-time gate branching
+  on *commutation* (`P → cosh 2θ P − sinh 2θ PG` for commuting terms), small-coefficient /
+  Pauli-weight truncation, and the locally normalised chain-rule **sampler** of *Sampling
+  from Thermal Quantum States via Pauli Propagation* — valid samples with exact
+  likelihoods from a truncated, possibly non-physical state. Exact for commuting
+  Hamiltonians, first-order-Trotter otherwise, topology-agnostic; pure NumPy. A QBM trains
+  through the unchanged `qbm.learn` API (relative-entropy gradient = generator
+  differences, read off the Pauli coefficients). Same expectation-based scope as the TN /
+  circuit backends: metrics, energy gradient, `log Z` and entropy raise a clear error.
+- **v0.12+ (next)** — the full Gibbs-map (imaginary-time) block sampler that removes
   the non-commuting CD bias; Petz–Tsallis loss; metrology / Cramér–Rao module; docs
   site and PyPI release.
+
+**Pauli-propagation note (v0.11).** This is the library's third *classical* engine, and
+it occupies a genuinely different corner from the dense and tensor-network backends: cost
+is set by the number of retained Pauli strings, so it is cheap at high temperature and for
+near-classical (mostly commuting) Hamiltonians and, unlike an MPS, indifferent to
+connectivity. Its natural output is *samples*, which is why the sampling paper pairs it
+with QBM generative modelling. The shipped engine is dependency-free NumPy chosen for
+clarity and exact validation; the many-qubit, GPU/multi-thread implementation of the
+papers is `PauliPropagation.jl`. It reuses the `monitor=` / `nan`-loss machinery from
+v0.10.1 verbatim — the relative-entropy value again needs `log Z` (unavailable from a
+truncated Pauli sum) while its gradient does not.
 
 **Training note (v0.10.1).** Device-native training exposes an asymmetry worth stating
 plainly: **the gradient is measurable but the loss value often is not.** The generative

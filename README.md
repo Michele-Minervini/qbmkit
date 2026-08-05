@@ -104,6 +104,7 @@ Guided Jupyter notebooks (theory + code + plots) live in [`notebooks/`](notebook
 10. **Swapping circuit emitters** — the internal IR; the core running with every SDK blocked; QASM 3 / Qiskit / PennyLane.
 11. **VarQITE Gibbs preparation** — preparing ρ(θ) on a device from expectation values only, and how to tell when it worked.
 12. **Training end-to-end with VarQITE** — the full device-native loop, shot noise, and the residual guard.
+13. **Pauli propagation** — thermal states as sparse Pauli sums; the locally normalised sampler; generative QBM training in the Pauli basis.
 
 ```bash
 pip install -e ".[notebooks]"
@@ -125,6 +126,13 @@ run on any backend:
   well past the dense ceiling: 20 qubits in ~1 s at bond dimension 4, where a dense
   density matrix would need ~17 TB. Metrics and the energy gradient are not available
   there and raise a clear error.
+- **`pauli_propagation`** — thermal state as a **sparse sum of Pauli strings** evolved
+  under imaginary time (arXiv:2602.04878). Exact for commuting (classical) Hamiltonians,
+  first-order-Trotter otherwise, and **topology-agnostic** (all-to-all costs the same as a
+  chain). Ships the locally normalised **sampler** of *Sampling from Thermal Quantum
+  States via Pauli Propagation* — valid samples with exact likelihoods even from a
+  truncated, non-physical state — which makes it a natural generative-modelling engine.
+  Pure NumPy, no dependency; expectation-based training and sampling only.
 - **`circuit`** — runs the QBM through **actual quantum circuits**: the thermal state is
   prepared as a thermofield-double purification and every quantity is obtained by
   *measurement*, with an optional shot budget. Includes Hadamard-test estimators for the
@@ -205,6 +213,40 @@ depend on the *spectrum* of ρ, which a device does not expose — those raise a
 error and belong on `backend="dense"`. VarQITE costs `O(L²)` circuits per time step for
 `L` ansatz rotations; `resource_estimate()` reports that and the shot cost up front.
 
+## Classical simulation in the Pauli basis (Pauli propagation)
+
+A third classical engine, alongside dense and tensor networks, with a different sweet
+spot. Instead of a `2ⁿ × 2ⁿ` matrix it stores ρ as a **sparse sum of Pauli strings** and
+reaches the thermal state by evolving the *identity* — the sparsest operator — under
+imaginary time ([arXiv:2602.04878](https://arxiv.org/abs/2602.04878)):
+
+```python
+from qbm.backends.pauli_propagation import PauliPropagationBackend
+
+backend = PauliPropagationBackend(trotter_steps=32, coeff_cutoff=1e-8)
+model   = qbm.learn(data, backend=backend, steps=120)   # generative training, Pauli basis
+model.state().sample(40_000)                             # locally normalised sampler
+```
+
+Each imaginary-time gate branches a Pauli string only when it **commutes** with the
+Hamiltonian term, `P → cosh(2θ)P − sinh(2θ)PG`; anticommuting terms pass through. This is
+**exact for commuting (classical) Hamiltonians**, first-order-Trotter otherwise, and
+**topology-agnostic** — an all-to-all Hamiltonian costs no more than a chain, where a
+tensor network would pay for the entanglement. The sum is kept sparse by discarding
+small-coefficient / high-weight terms, which trades retained terms for accuracy.
+
+Truncation can push ρ outside the positive cone, so its basis "probabilities" may go
+slightly negative. The **locally normalised sampler** of *Sampling from Thermal Quantum
+States via Pauli Propagation* fixes this: it draws bits sequentially from absolute
+quasi-marginals, a valid distribution within a certified total-variation distance of the
+true Born distribution, and yields **exact pointwise likelihoods** — a pairing generative
+models rarely offer. A QBM trains through the unchanged `qbm.learn` API and matches exact
+training (KL to ~4e-5). Same honest scope as the other expectation-based backends: metrics,
+the energy gradient, `log Z` and the entropy raise a clear error. Pure NumPy, no
+dependency. See [notebook 13](notebooks/13_pauli_propagation_qbm.ipynb); the
+high-performance many-qubit implementation is
+[`PauliPropagation.jl`](https://github.com/Michele-Minervini/PauliSampling.jl).
+
 ## Arbitrary quantum Fisher information metrics
 
 Every metric is a weight kernel `W[k,l]` on the state derivatives in the eigenbasis of
@@ -254,17 +296,19 @@ changes anywhere else — see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Status
 
-v0.10 — one-call **task layer** (generative, ground state, state learning,
+v0.11 — one-call **task layer** (generative, ground state, state learning,
 free energy, **SDP**); dense + statevector (TFD purification + shots) + **JAX
-autodiff** + **tensor-network** + **circuit** backends behind a registry seam,
-with **VarQITE** variational Gibbs preparation on the circuit route; sample-based
+autodiff** + **tensor-network** + **circuit** + **Pauli-propagation** backends behind a
+registry seam, with **VarQITE** variational Gibbs preparation on the circuit route and
+imaginary-time **Pauli propagation** (sparse-Pauli engine + locally normalised sampler);
+sample-based
 training (block-Gibbs / contrastive divergence); fully-visible, visible+hidden,
 **semi-quantum RBM** (closed-form) and **Evolved QBM** models; relative-entropy /
 energy / marginal-NLL / sqRBM-NLL / free-energy / quantum-target-relative-entropy /
 SDP-dual losses, plus autodiff of arbitrary density-matrix objectives; GD / Adam /
 quantum natural gradient; **arbitrary QFI metrics** (the α-z family plus user kernels,
 with Kubo–Mori / Fisher–Bures / Wigner–Yanase as special cases);
-barren-plateau diagnostics. **237 tests** across seven tiers — exact oracles, finite
+barren-plateau diagnostics. **270 tests** across seven tiers — exact oracles, finite
 differences, autodiff (~1e-15), cross-backend agreement, strong duality/KKT with an
 independent reference SDP solver, **four paper reproductions**
 ([`tests/reproductions/`](tests/reproductions)), Hypothesis property-based tests, and
