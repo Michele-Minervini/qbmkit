@@ -5,7 +5,10 @@ type: software
 authors:
   - family-names: Minervini
     given-names: Michele
-repository-code: "https://github.com/micheleminervini/qbmkit"
+repository-code: "https://github.com/Michele-Minervini/qbmkit"
+url: "https://github.com/Michele-Minervini/qbmkit"
+version: 0.12.0
+date-released: "2026-08-07"
 abstract: >-
   qbmkit is a Python library for quantum Boltzmann machines (QBMs). It is built on a
   single object, the parameterized Gibbs state rho(theta) = exp(-G(theta))/Z, and a
@@ -13,9 +16,11 @@ abstract: >-
   gradient and every quantum Fisher information metric follows. It provides
   fully-visible, visible+hidden, semi-quantum restricted and evolved QBM models;
   relative-entropy, energy, likelihood, free-energy and semidefinite-programming
-  objectives; Kubo-Mori, Fisher-Bures and Wigner-Yanase metrics with quantum natural
-  gradient; and swappable dense, thermofield-double statevector and JAX autodiff
-  backends.
+  objectives; arbitrary monotone quantum Fisher information metrics (the alpha-z
+  family, containing Kubo-Mori, Fisher-Bures and Wigner-Yanase) with quantum natural
+  gradient; and swappable dense, thermofield-double statevector, JAX autodiff,
+  tensor-network, quantum-circuit (with VarQITE Gibbs preparation) and
+  Pauli-propagation backends.
 keywords:
   - quantum Boltzmann machine
   - quantum machine learning

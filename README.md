@@ -1,5 +1,10 @@
 # qbmkit
 
+[![CI](https://github.com/Michele-Minervini/qbmkit/actions/workflows/ci.yml/badge.svg)](https://github.com/Michele-Minervini/qbmkit/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/qbmkit.svg)](https://pypi.org/project/qbmkit/)
+[![Python](https://img.shields.io/pypi/pyversions/qbmkit.svg)](https://pypi.org/project/qbmkit/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 **The unifying, open-source library for Quantum Boltzmann Machines (QBMs)** — the
 reference place to learn, study, research, and run simulations with QBMs.
 
@@ -68,25 +73,41 @@ change to user code.
 
 ## Install
 
-Use an isolated virtual environment (recommended — keeps the project's
-dependencies, including the NumPy-2 / JAX stack, off your system Python):
+```bash
+pip install qbmkit
+```
+
+Core install is just NumPy and SciPy, and already gives you the **dense**,
+**statevector**, **circuit** and **Pauli-propagation** backends. Optional extras add the
+rest:
 
 ```bash
-python3 -m venv .venv            # create the environment
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -e .                 # core only: numpy, scipy
-# or pick extras:
-pip install -e ".[dev]"          # + pytest, ruff, matplotlib, nbclient  (run the tests/notebooks)
-pip install -e ".[jax]"          # + JAX autodiff backend (pulls NumPy >= 2)
-pip install -e ".[dev,jax,notebooks]"   # everything
-pytest                           # run the test suite
+pip install "qbmkit[jax]"        # + JAX autodiff backend, GPU-capable (pulls NumPy >= 2)
+pip install "qbmkit[tn]"         # + tensor-network backend (quimb)
+pip install "qbmkit[circuit]"    # + Qiskit emitter   (the circuit backend itself needs no SDK)
+pip install "qbmkit[notebooks]"  # + matplotlib/jupyter to run the tutorials
+```
+
+Straight from source (latest `main`):
+
+```bash
+pip install "git+https://github.com/Michele-Minervini/qbmkit"
+```
+
+For development, in a virtual environment:
+
+```bash
+git clone https://github.com/Michele-Minervini/qbmkit && cd qbmkit
+python3 -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"          # + pytest, ruff, matplotlib, nbclient
+pytest                           # 292 tests
 ```
 
 > Notes
-> - The `jax` extra requires NumPy >= 2; the venv keeps that isolated. The base
->   install (dense + statevector backends) runs on NumPy 1.x or 2.x.
-> - Do not install this alongside the unrelated dormant PyPI package `qbm`; both
->   expose a top-level `qbm` module.
+> - Python 3.9–3.13. The `jax` extra requires NumPy >= 2; the base install runs on
+>   NumPy 1.x or 2.x. PennyLane is only installed on Python >= 3.10 (it dropped 3.9).
+> - Install name is `qbmkit`, import name is `qbm`. Do not install it alongside the
+>   unrelated dormant PyPI package `qbm` — both expose a top-level `qbm` module.
 
 ## Tutorials
 

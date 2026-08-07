@@ -1,0 +1,82 @@
+name: Release to PyPI
+
+# Publishes on a GitHub Release via PyPI **Trusted Publishing** (OIDC): no API token
+# is ever stored in this repository or in GitHub secrets.  One-time setup on PyPI:
+#   pypi.org -> Your projects -> Publishing -> Add a new pending publisher
+#     PyPI project name : qbmkit
+#     Owner             : Michele-Minervini
+#     Repository name   : qbmkit
+#     Workflow name     : release.yml
+#     Environment name  : pypi
+# Then cut a GitHub Release and this runs automatically.
+#
+# `workflow_dispatch` builds and uploads to TestPyPI instead, so the pipeline can be
+# rehearsed without burning the real version number (PyPI filenames are immutable).
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          python -m twine check dist/*
+      - name: Verify the sdist installs and imports standalone
+        run: |
+          python -m venv /tmp/fresh
+          /tmp/fresh/bin/pip install dist/*.tar.gz
+          cd /tmp && /tmp/fresh/bin/python -c "import qbm; print(qbm.__version__, qbm.available_backends())"
+      - name: Check the tag matches the packaged version
+        if: github.event_name == 'release'
+        run: |
+          PKG=$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          TAG="${GITHUB_REF_NAME#v}"
+          echo "packaged=$PKG  tag=$TAG"
+          test "$PKG" = "$TAG" || { echo "::error::tag $TAG != pyproject version $PKG"; exit 1; }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  pypi:
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # OIDC -- this is what replaces an API token
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  testpypi:
+    needs: build
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
