@@ -4,6 +4,7 @@
 [![PyPI](https://img.shields.io/pypi/v/qbmkit.svg?cacheSeconds=1800)](https://pypi.org/project/qbmkit/)
 [![Python](https://img.shields.io/pypi/pyversions/qbmkit.svg?cacheSeconds=1800)](https://pypi.org/project/qbmkit/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21844741.svg)](https://doi.org/10.5281/zenodo.21844741)
 
 **The unifying, open-source library for Quantum Boltzmann Machines (QBMs)** — the
 reference place to learn, study, research, and run simulations with QBMs.
@@ -378,6 +379,29 @@ independent reference SDP solver, **four paper reproductions**
 ([`tests/reproductions/`](tests/reproductions)), Hypothesis property-based tests, and
 a [scaling benchmark](benchmarks/scaling.py) — green on Python 3.9–3.13 × {core, jax}
 × {Linux, macOS}. See the roadmap in [`DESIGN.md`](DESIGN.md).
+
+## How to cite
+
+If `qbmkit` supports your research, please cite the archived software. The DOI below is
+the *concept* DOI: it always resolves to the latest version, and each release also has
+its own version DOI if you need to pin one.
+
+> Minervini, M. *qbmkit: a unifying open-source library for quantum Boltzmann machines*.
+> Zenodo. https://doi.org/10.5281/zenodo.21844741
+
+```bibtex
+@software{qbmkit,
+  author  = {Minervini, Michele},
+  title   = {qbmkit: a unifying open-source library for quantum Boltzmann machines},
+  year    = {2026},
+  publisher = {Zenodo},
+  doi     = {10.5281/zenodo.21844741},
+  url     = {https://github.com/Michele-Minervini/qbmkit}
+}
+```
+
+GitHub's **Cite this repository** button reads [`CITATION.cff`](CITATION.cff) and will
+produce the same thing.
 
 ## License
 

@@ -29,4 +29,9 @@ keywords:
   - Gibbs state
   - quantum natural gradient
   - quantum Fisher information
+doi: "10.5281/zenodo.21844741"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.21844741"
+    description: "Concept DOI -- always resolves to the latest release"
 license: MIT
