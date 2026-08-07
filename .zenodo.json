@@ -1,0 +1,37 @@
+{
+  "upload_type": "software",
+  "title": "qbmkit: a unifying open-source library for quantum Boltzmann machines",
+  "creators": [
+    {
+      "name": "Minervini, Michele",
+      "affiliation": "Institute of Physics, Ecole Polytechnique Federale de Lausanne (EPFL)"
+    }
+  ],
+  "description": "<p><strong>qbmkit</strong> is a Python library for quantum Boltzmann machines (QBMs). It is built on a single object, the parameterized Gibbs state <em>rho(theta) = exp(-G(theta))/Z</em>, and a single numerical primitive, the belief-propagation channel, from which every gradient and every quantum Fisher information metric follows.</p><p>It provides fully-visible, visible+hidden, semi-quantum restricted and evolved QBM models; relative-entropy, energy, likelihood, free-energy and semidefinite-programming objectives; arbitrary monotone quantum Fisher information metrics (the alpha-z family, which contains Kubo-Mori, Fisher-Bures and Wigner-Yanase) with quantum natural gradient; and six interchangeable backends behind one protocol: exact dense, thermofield-double statevector, JAX autodiff, tensor-network (purified MPS), quantum-circuit (with VarQITE variational Gibbs preparation and Hadamard-test estimators, requiring no vendor SDK), and imaginary-time Pauli propagation with a locally normalised sampler.</p><p>The library ships thirteen guided Jupyter tutorials, runnable examples, and a test suite of nearly 300 checks including paper reproductions, finite-difference and autodiff cross-validation, and cross-backend agreement.</p>",
+  "license": "mit",
+  "access_right": "open",
+  "keywords": [
+    "quantum Boltzmann machine",
+    "quantum machine learning",
+    "Gibbs state",
+    "quantum natural gradient",
+    "quantum Fisher information",
+    "generative modelling",
+    "Pauli propagation",
+    "tensor networks",
+    "quantum information",
+    "Python"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/Michele-Minervini/qbmkit",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://pypi.org/project/qbmkit/",
+      "relation": "isIdenticalTo",
+      "scheme": "url"
+    }
+  ]
+}

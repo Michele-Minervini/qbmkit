@@ -1,8 +1,8 @@
 # qbmkit
 
 [![CI](https://github.com/Michele-Minervini/qbmkit/actions/workflows/ci.yml/badge.svg)](https://github.com/Michele-Minervini/qbmkit/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/qbmkit.svg)](https://pypi.org/project/qbmkit/)
-[![Python](https://img.shields.io/pypi/pyversions/qbmkit.svg)](https://pypi.org/project/qbmkit/)
+[![PyPI](https://img.shields.io/pypi/v/qbmkit.svg?cacheSeconds=1800)](https://pypi.org/project/qbmkit/)
+[![Python](https://img.shields.io/pypi/pyversions/qbmkit.svg?cacheSeconds=1800)](https://pypi.org/project/qbmkit/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **The unifying, open-source library for Quantum Boltzmann Machines (QBMs)** — the
