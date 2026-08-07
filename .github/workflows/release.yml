@@ -7,11 +7,21 @@ name: Release to PyPI
 #     Owner             : Michele-Minervini
 #     Repository name   : qbmkit
 #     Workflow name     : release.yml
-#     Environment name  : pypi
+#     Environment name  : pypi          <- must match the `environment:` below exactly
 # Then cut a GitHub Release and this runs automatically.
 #
-# `workflow_dispatch` builds and uploads to TestPyPI instead, so the pipeline can be
-# rehearsed without burning the real version number (PyPI filenames are immutable).
+# `workflow_dispatch` runs the same build and uploads to TestPyPI instead.  NOTE:
+# TestPyPI is a *separate service* with its own account and its own publisher registry
+# -- registering on pypi.org does not register you on test.pypi.org.  To use the
+# rehearsal, repeat the steps above at test.pypi.org with environment name `testpypi`.
+# Without it the `testpypi` job fails at the upload step with `invalid-publisher`; the
+# `build` job still runs and is the part that validates the artifacts (it builds,
+# twine-checks, and installs the sdist into a clean venv to confirm it imports).
+#
+# The rehearsal is optional: a *failed* trusted-publishing handshake does not consume
+# the version number -- only a successful upload makes a filename immutable -- so going
+# straight to a real Release is safe. If the handshake is misconfigured, fix the
+# publisher and re-run the failed job.
 
 on:
   release:
