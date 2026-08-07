@@ -3,6 +3,7 @@
 from .base import Loss
 from .energy import Energy
 from .free_energy import FreeEnergy
+from .gibbs_map_nll import GibbsMapNLL
 from .likelihood import NLL, MarginalNLL, SqRBMNLL
 from .relative_entropy import MarginalRelativeEntropy, RelativeEntropy
 from .sdp import SDPDual, sdp_hamiltonian
@@ -14,6 +15,7 @@ __all__ = [
     "MarginalRelativeEntropy",
     "NLL",
     "MarginalNLL",
+    "GibbsMapNLL",
     "SqRBMNLL",
     "FreeEnergy",
     "SDPDual",

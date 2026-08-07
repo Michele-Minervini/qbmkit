@@ -154,7 +154,12 @@ class CircuitThermalState:
         self._unsupported("state derivatives")
 
     def diagonal_gradient(self):
-        self._unsupported("the diagonal gradient")
+        raise NotImplementedError(
+            "the diagonal gradient is not a measurable expectation value. For hidden-unit "
+            "models use qbm.losses.GibbsMapNLL: its positive phase is an exact classical "
+            "computation on the hidden register and its negative phase is just <G_j>, so "
+            "it runs on this backend."
+        )
 
     def log_partition(self):
         self._unsupported("log Z")

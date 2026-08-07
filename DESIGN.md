@@ -140,9 +140,16 @@ from. (Check: `Tr(d_j rho) = 0`.)
   classical distribution `q` is the special case `sigma = diag(q)`.
 - *Free energy* `F = <H> - T S`: at the exact Gibbs state, `d_j F = <H_j>` by the
   Gibbs variational identity.
-- *Hidden-unit* models replace `<G_j>_sigma` by the modular-flow-lifted
-  expectation `<G_j>_{Sigma_{v->vh}(sigma)}` (paper 2512.19819); planned for the
-  hidden-unit milestone.
+- *Hidden-unit* models: with a **diagonal visible register** the exact likelihood
+  gradient is `d_j L = sum_v q(v) <G_j>_{sigma_v} - <G_j>_rho`, where
+  `sigma_v = |v><v| (x) rho_v` uses the *exact conditional* hidden Gibbs state
+  `rho_v = e^{-G_h(v)}/Z_v` (the **Gibbs map**, `qbm.gibbs_map`). Since
+  `d_theta Tr[e^{-G}] = -Tr[(d_theta G) e^{-G}]` holds even for non-commuting `G`,
+  this is exact for non-commuting hidden operators — and it needs only
+  `generator_expectations()`, so it works on every backend. The dense
+  Frechet-derivative route (`MarginalNLL`, via `d_j rho`) remains available and the
+  two agree to ~1e-16. For a *non*-diagonal visible register only the dense route
+  applies.
 
 **Quantum Fisher / information metrics (one formula, three kernels).** Every
 monotone metric is
@@ -405,9 +412,25 @@ an exact oracle, and the suite (100+ tests) gates every change across seven tier
   through the unchanged `qbm.learn` API (relative-entropy gradient = generator
   differences, read off the Pauli coefficients). Same expectation-based scope as the TN /
   circuit backends: metrics, energy gradient, `log Z` and entropy raise a clear error.
-- **v0.12+ (next)** — the full Gibbs-map (imaginary-time) block sampler that removes
-  the non-commuting CD bias; Petz–Tsallis loss; metrology / Cramér–Rao module; docs
-  site and PyPI release.
+- **v0.12 (done)** — the **Gibbs map** (`qbm.gibbs_map`, `qbm.losses.GibbsMapNLL`).
+  With a diagonal visible register `G(theta) = (+)_v G_h(v)`, so the hidden register is
+  traced out *exactly* rather than sampled. This (a) removes the non-commuting
+  contrastive-divergence bias — the sampler now sits at the finite-sample floor
+  (TVD 0.003 vs 0.26 for the block-Gibbs chain) — and (b) makes the exact likelihood
+  gradient `sum_v q(v) <G_j>_{sigma_v} - <G_j>_rho` depend only on
+  `generator_expectations()`, so **hidden-unit training runs on the tensor-network,
+  circuit and Pauli-propagation backends** (matches the dense Frechet route to 4e-16).
+  The map also supplies `log Z`, so the loss *value* survives on those backends too.
+- **v0.13+ (next)** — Petz–Tsallis loss; metrology / Cramér–Rao module; a vectorised
+  Pauli-propagation kernel; a cross-backend benchmark; docs site, PyPI release and DOI.
+
+**Hidden-unit note (v0.12).** Before this, `MarginalNLL` was the only exact route and it
+needs `d_j rho` (`diagonal_gradient`), which capped hidden units at the dense ceiling —
+the tensor-network backend did not even refuse it cleanly (bare `AttributeError`, now a
+`NotImplementedError` naming the alternative). The Gibbs map is the general fix, and it
+costs `O(D_distinct * 8^n_hidden)`: independent of the number of *visible* units, so the
+hidden count is the only exponential left. `qbm.sampling` is kept as the cheaper, purely
+local option that needs no `2^n_hidden` eigendecomposition and is exact for classical RBMs.
 
 **Pauli-propagation note (v0.11).** This is the library's third *classical* engine, and
 it occupies a genuinely different corner from the dense and tensor-network backends: cost

@@ -193,6 +193,16 @@ class TensorNetworkThermalState:
     def state_derivatives(self):
         self._unsupported("state derivatives")
 
+    def diagonal_gradient(self):
+        # hidden-unit NLL used to die here with a bare AttributeError; the exact
+        # alternative is qbm.losses.GibbsMapNLL, whose gradient needs only <G_j>
+        raise NotImplementedError(
+            "the diagonal gradient needs d_j rho, which the tensor-network backend does "
+            "not provide. For hidden-unit models use qbm.losses.GibbsMapNLL, which is "
+            "exact (even for non-commuting hidden operators) and needs only generator "
+            "expectations, so it runs on this backend."
+        )
+
     def log_partition(self):
         self._unsupported("log Z")
 

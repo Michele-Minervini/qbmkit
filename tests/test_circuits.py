@@ -103,9 +103,13 @@ def test_shot_noise_is_unbiased():
 def test_spectrum_dependent_quantities_are_refused():
     ham, theta = _model()
     st = CircuitBackend().thermal_state(ham, theta)
-    for call in (st.entropy, st.log_partition, st.state_derivatives, st.diagonal_gradient):
+    for call in (st.entropy, st.log_partition, st.state_derivatives):
         with pytest.raises(NotImplementedError, match="spectrum"):
             call()
+    # the diagonal gradient is a different refusal: it needs d_j rho, not the spectrum,
+    # and there is now an exact alternative for hidden-unit models
+    with pytest.raises(NotImplementedError, match="GibbsMapNLL"):
+        st.diagonal_gradient()
 
 
 def test_unknown_gibbs_strategy_is_explicit():

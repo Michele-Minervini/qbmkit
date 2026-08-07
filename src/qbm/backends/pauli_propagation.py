@@ -136,7 +136,12 @@ class PauliPropThermalState:
         self._unsupported("state derivatives")
 
     def diagonal_gradient(self):
-        self._unsupported("the diagonal gradient")
+        raise NotImplementedError(
+            "the diagonal gradient needs d_j rho, which the sparse-Pauli representation "
+            "does not expose. For hidden-unit models use qbm.losses.GibbsMapNLL: it is "
+            "exact even for non-commuting hidden operators and needs only generator "
+            "expectations, so it runs on this backend."
+        )
 
     def log_partition(self):
         self._unsupported("log Z")

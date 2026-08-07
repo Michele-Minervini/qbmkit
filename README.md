@@ -57,7 +57,7 @@ follows. See [`DESIGN.md`](DESIGN.md).
 tasks         learn · ground_state · learn_state · free_energy_min · solve_sdp
 primitives    models | losses | metrics (QFI) | optimizers      ← all registry-addressable
 core          ParamHamiltonian · ThermalState · Φ_θ
-backend seam  dense (default) | statevector (TFD) | jax | tensor network | circuit
+backend seam  dense (default) | statevector (TFD) | jax | tensor network | circuit | Pauli propagation
 ```
 
 Only the backend layer touches concrete linear algebra. The default `DenseBackend`
@@ -250,6 +250,46 @@ dependency. See [notebook 13](notebooks/13_pauli_propagation_qbm.ipynb); the
 high-performance many-qubit implementation is
 [`PauliPropagation.jl`](https://github.com/Michele-Minervini/PauliSampling.jl).
 
+## Hidden units at scale: the Gibbs map
+
+Hidden-unit models used to be capped at the dense ceiling, because the exact likelihood
+gradient ([`MarginalNLL`](src/qbm/losses/likelihood.py)) needs `d_j ρ` — which no scalable
+backend can form. And the block-Gibbs contrastive-divergence alternative is *biased* when
+the hidden operators don't commute.
+
+[`qbm.gibbs_map`](src/qbm/gibbs_map.py) removes both problems at once. Because the visible
+register is diagonal, `G(θ)` is block diagonal in the visible basis, `G = ⊕ᵥ G_h(v)`, so the
+hidden register can be **traced out exactly** instead of sampled:
+
+```python
+from qbm.losses import GibbsMapNLL
+
+model = qbm.VisibleHiddenQBM(n_visible=4, n_hidden=2, hidden_paulis=("Z", "X"),
+                             backend=qbm.get_backend("pauli_propagation"))
+qbm.fit(model, GibbsMapNLL(data, n_visible=4), qbm.optim.Adam(lr=0.12), steps=80)
+```
+
+The gradient splits into the familiar positive/negative phases —
+`∂ⱼL = Σᵥ q(v)⟨Gⱼ⟩_{σᵥ} − ⟨Gⱼ⟩_ρ` — but the positive phase uses the **exact conditional
+Gibbs state** `ρᵥ = e^{−G_h(v)}/Z_v` rather than a sampled classical conditional, so it is
+exact for non-commuting hidden operators. The negative phase is just `generator_expectations()`,
+which every backend provides — so **hidden-unit training now runs on the tensor-network,
+circuit and Pauli-propagation backends** (verified to 4e-16 against the dense route). The
+positive phase touches only the hidden register and only the configurations present in the
+data, so its cost is independent of the number of visible units.
+
+The same map gives an **unbiased sampler** (`GibbsMap.sample`), a chain on the exact visible
+free energy `−log Z_v`. On a non-commuting sqRBM, measured against 40 000 samples:
+
+| sampler | TVD to exact |
+|---|---|
+| block-Gibbs CD (`qbm.sampling`) | 0.265 — biased |
+| **Gibbs map** (`qbm.gibbs_map`) | **0.0031** |
+| i.i.d. finite-sample floor | 0.0032 |
+
+It also supplies `log Z` itself, so unlike `RelativeEntropy` the loss *value* is available on
+the scalable backends too.
+
 ## Arbitrary quantum Fisher information metrics
 
 Every metric is a weight kernel `W[k,l]` on the state derivatives in the eigenbasis of
@@ -299,7 +339,7 @@ changes anywhere else — see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Status
 
-v0.11 — one-call **task layer** (generative, ground state, state learning,
+v0.12 — one-call **task layer** (generative, ground state, state learning,
 free energy, **SDP**); dense + statevector (TFD purification + shots) + **JAX
 autodiff** + **tensor-network** + **circuit** + **Pauli-propagation** backends behind a
 registry seam, with **VarQITE** variational Gibbs preparation on the circuit route and
@@ -311,7 +351,7 @@ energy / marginal-NLL / sqRBM-NLL / free-energy / quantum-target-relative-entrop
 SDP-dual losses, plus autodiff of arbitrary density-matrix objectives; GD / Adam /
 quantum natural gradient; **arbitrary QFI metrics** (the α-z family plus user kernels,
 with Kubo–Mori / Fisher–Bures / Wigner–Yanase as special cases);
-barren-plateau diagnostics. **271 tests** across seven tiers — exact oracles, finite
+barren-plateau diagnostics. **292 tests** across seven tiers — exact oracles, finite
 differences, autodiff (~1e-15), cross-backend agreement, strong duality/KKT with an
 independent reference SDP solver, **four paper reproductions**
 ([`tests/reproductions/`](tests/reproductions)), Hypothesis property-based tests, and

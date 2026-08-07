@@ -82,6 +82,7 @@ def register_builtins() -> None:
         ("marginal_relative_entropy", losses.MarginalRelativeEntropy),
         ("nll", losses.NLL),
         ("marginal_nll", losses.MarginalNLL),
+        ("gibbs_map_nll", losses.GibbsMapNLL),
         ("sqrbm_nll", losses.SqRBMNLL),
         ("free_energy", losses.FreeEnergy),
         ("sdp_dual", losses.SDPDual),

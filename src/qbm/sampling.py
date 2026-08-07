@@ -27,12 +27,23 @@ distribution and CD-k converges to the exact gradient as ``k`` and the number of
 chains grow (verified in the test suite).
 
 With **non-commuting** hidden Paulis the chain is an *approximation*: measured
-total-variation distance to the exact model marginal is ~0.07 for a typical
+total-variation distance to the exact model marginal is ~0.16 for a typical
 ``("X", "Z")`` sqRBM, and the CD gradient stays positively aligned with the exact one
-(a usable descent direction) without converging to it.  Removing that bias needs the
-full Gibbs-map treatment (imaginary-time evolution) of arXiv:2511.11802, which is not
-implemented here.  For exact non-commuting gradients use
-:class:`~qbm.losses.SqRBMNLL` (closed form) or the dense backend.
+(a usable descent direction) without converging to it.
+
+**That bias is now removable.**  :mod:`qbm.gibbs_map` implements the full Gibbs-map
+(imaginary-time) treatment of arXiv:2511.11802: because the visible register is
+diagonal, the hidden register can be traced out *exactly* instead of sampled, giving
+
+* :meth:`~qbm.gibbs_map.GibbsMap.sample` -- an unbiased chain on the exact visible free
+  energy (measured TVD ~0.004 against ~0.16 for the block-Gibbs chain above, at the
+  finite-sample floor), and
+* :class:`~qbm.losses.GibbsMapNLL` -- the *exact* likelihood gradient, which needs only
+  ``generator_expectations()`` and therefore runs on the tensor-network, circuit and
+  Pauli-propagation backends as well.
+
+Prefer those.  This module remains the cheap, purely local option (no
+``2^n_hidden`` eigendecomposition) and is exact in the commuting/classical-RBM case.
 
 Choosing an optimizer
 ---------------------
