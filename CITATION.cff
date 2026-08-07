@@ -5,9 +5,11 @@ type: software
 authors:
   - family-names: Minervini
     given-names: Michele
+    affiliation: "School of Electrical and Computer Engineering, Cornell University"
+    orcid: "https://orcid.org/0009-0000-4739-0075"
 repository-code: "https://github.com/Michele-Minervini/qbmkit"
 url: "https://github.com/Michele-Minervini/qbmkit"
-version: 0.12.0
+version: 0.12.1
 date-released: "2026-08-07"
 abstract: >-
   qbmkit is a Python library for quantum Boltzmann machines (QBMs). It is built on a
