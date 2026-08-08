@@ -1,0 +1,66 @@
+name: JOSS eligibility reminder
+
+# qbmkit was made public on 2026-08-07. JOSS requires a repository to have been public
+# for 6+ months with evidence of ongoing development before it will pass the pre-review
+# scope check, so the earliest sensible submission date is 2027-02-07. This workflow
+# opens a reminder issue once that date has passed, and does nothing before it.
+#
+# It runs weekly rather than once, so a missed or delayed run simply fires the next week,
+# and it is idempotent: it will not open a second reminder if one already exists.
+#
+# CAVEAT: GitHub automatically disables scheduled workflows in repositories with no
+# activity for 60 days. Following the weekly plan in docs/codebase-tour.md keeps the
+# repository active; if it does go quiet, re-enable this workflow in the Actions tab
+# (or just run it manually with "Run workflow").
+
+on:
+  schedule:
+    - cron: '0 9 * * 1' # Mondays, 09:00 UTC
+  workflow_dispatch: # lets you test it at any time
+
+permissions:
+  issues: write
+
+env:
+  TARGET_DATE: '2027-02-09' # 6 months after going public, plus a small buffer
+  MARKER_LABEL: 'joss-reminder'
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Has the eligibility date passed?
+        id: check
+        run: |
+          TODAY=$(date -u +%F)
+          echo "today=$TODAY  target=$TARGET_DATE"
+          if [[ "$TODAY" < "$TARGET_DATE" ]]; then
+            DAYS=$(( ( $(date -u -d "$TARGET_DATE" +%s) - $(date -u -d "$TODAY" +%s) ) / 86400 ))
+            echo "::notice::Not yet eligible -- $DAYS days to go."
+            echo "fire=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "fire=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Has a reminder already been opened?
+        if: steps.check.outputs.fire == 'true'
+        id: dedupe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COUNT=$(gh issue list --repo "$GITHUB_REPOSITORY" --state all \
+                    --label "$MARKER_LABEL" --json number --jq 'length')
+          echo "existing=$COUNT" >> "$GITHUB_OUTPUT"
+          [[ "$COUNT" -gt 0 ]] && echo "::notice::Reminder already exists; nothing to do."
+
+      - name: Open the reminder
+        if: steps.check.outputs.fire == 'true' && steps.dedupe.outputs.existing == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create "$MARKER_LABEL" --color 'fbca04' \
+            --description 'Automated JOSS eligibility reminder' --force || true
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "qbmkit is now eligible for JOSS submission" \
+            --label "$MARKER_LABEL" \
+            --body "$(cat .github/JOSS_REMINDER.md)"
