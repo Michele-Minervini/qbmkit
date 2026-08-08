@@ -54,7 +54,11 @@ jobs:
           COUNT=$(gh issue list --repo "$GITHUB_REPOSITORY" --state all \
                     --label "$MARKER_LABEL" --json number --jq 'length')
           echo "existing=$COUNT" >> "$GITHUB_OUTPUT"
-          [[ "$COUNT" -gt 0 ]] && echo "::notice::Reminder already exists; nothing to do."
+          # NB: must not be `[[ ... ]] && echo`, which exits 1 when COUNT is 0 and would
+          # abort this step under `bash -e` -- i.e. exactly when the reminder is needed.
+          if [[ "$COUNT" -gt 0 ]]; then
+            echo "::notice::Reminder already exists; nothing to do."
+          fi
 
       - name: Open the reminder
         if: steps.check.outputs.fire == 'true' && steps.dedupe.outputs.existing == '0'
