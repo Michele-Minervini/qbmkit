@@ -7,7 +7,7 @@ more than speed of merging.
 ## Setup
 
 ```bash
-git clone https://github.com/micheleminervini/qbmkit
+git clone https://github.com/Michele-Minervini/qbmkit
 cd qbmkit
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,jax,notebooks]"
@@ -59,8 +59,23 @@ executes every notebook.
 - NumPy-style docstrings; document the *mathematical* meaning, not just the types.
 - If you implement a formula from a paper, cite it (arXiv id) in the docstring.
 
-## Reporting bugs
+## Reporting bugs and requesting features
 
-Please include the qbmkit version, the backend, a minimal reproducer, and — for
-numerical issues — the system size and parameter scale. Numerical bugs in this
-domain are often regime-specific (e.g. very low temperature, degenerate spectra).
+Open an [issue](https://github.com/Michele-Minervini/qbmkit/issues); templates for bug
+reports and feature requests are provided. For a bug, please include the qbmkit version
+(`qbm.__version__`), the backend, and a minimal reproducer — and for numerical issues the
+system size and parameter scale, since bugs in this domain are often regime-specific
+(very low temperature, degenerate spectra, aggressive truncation).
+
+## Getting help
+
+For questions about *using* the library — which backend fits your problem, which metric
+or loss to choose, how to express a model — please open a
+[Discussion](https://github.com/Michele-Minervini/qbmkit/discussions) or an issue
+labelled `question` rather than emailing the maintainer, so the answer is searchable by
+the next person. The [tutorials](notebooks/) cover most first questions, and
+[`DESIGN.md`](DESIGN.md) documents the exact formulas behind every routine.
+
+## Code of conduct
+
+Participation is governed by the [Contributor Covenant](CODE_OF_CONDUCT.md).
