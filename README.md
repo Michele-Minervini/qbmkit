@@ -357,7 +357,10 @@ qbm.available()                     # {'model': [...], 'loss': [...], ...}
 ```
 
 A new **model** needs no new losses or metrics, and a new **backend** needs no
-changes anywhere else — see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+changes anywhere else — see [`CONTRIBUTING.md`](CONTRIBUTING.md). For a guided,
+dependency-ordered walk through the whole codebase — what each module claims, how to
+verify it, and what to be able to answer — see the
+[codebase tour](docs/codebase-tour.md).
 
 ## Status
 

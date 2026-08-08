@@ -26,7 +26,9 @@ Practical consequence: **a new model should not need new losses or metrics**, an
 new backend should not need changes anywhere else. If your change requires touching
 many layers, the abstraction is probably in the wrong place — open an issue first.
 
-See [`DESIGN.md`](DESIGN.md) for the full specification and the exact formulas.
+See [`DESIGN.md`](DESIGN.md) for the full specification and the exact formulas, and the
+[codebase tour](docs/codebase-tour.md) for a dependency-ordered reading path through every
+module, with verification exercises — the fastest way to get real ownership of a subsystem.
 
 ## Adding something
 
