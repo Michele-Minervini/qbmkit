@@ -29,6 +29,9 @@ jobs:
   remind:
     runs-on: ubuntu-latest
     steps:
+      # required: the reminder body is read from .github/JOSS_REMINDER.md in the repo
+      - uses: actions/checkout@v4
+
       - name: Has the eligibility date passed?
         id: check
         run: |
