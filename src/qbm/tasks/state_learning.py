@@ -32,7 +32,10 @@ def learn_state(
 
     With ``n_hidden = 0`` the model is fully visible and the exact
     ``<G_j>_data - <G_j>_model`` gradient is used.  With hidden units the loss is the
-    reduced-state relative entropy ``D(sigma || Tr_h rho)``.
+    reduced-state relative entropy ``D(sigma || Tr_h rho)``, and the default model is a
+    *fully quantum* restricted Boltzmann machine (``X``, ``Y``, ``Z`` on both registers).
+    The semi-quantum one, with ``Z`` alone on the visible units, has a diagonal visible
+    state whatever its hidden units do, so it cannot represent a target with coherences.
 
     Parameters
     ----------
@@ -40,9 +43,12 @@ def learn_state(
         Target density matrix on the visible qubits.
     n_hidden : int
         Number of hidden qubits to add to the model.
+    model : Model, optional
+        Replaces the default model, e.g. a :class:`~qbm.VisibleHiddenQBM` with your own
+        choice of ``visible_paulis`` / ``hidden_paulis``.
     locality : int
-        Locality of the default Pauli generator pool (2 = every 1- and 2-body Pauli),
-        so any 2-local Gibbs target is exactly representable.
+        Locality of the default fully-visible generator pool (2 = every 1- and 2-body
+        Pauli), so any 2-local Gibbs target is exactly representable.
 
     Returns
     -------
@@ -60,7 +66,13 @@ def learn_state(
 
     if model is None:
         if n_hidden > 0:
-            model = VisibleHiddenQBM(n_visible=n_visible, n_hidden=n_hidden, backend=backend)
+            model = VisibleHiddenQBM(
+                n_visible=n_visible,
+                n_hidden=n_hidden,
+                visible_paulis=("X", "Y", "Z"),  # a quantum target needs a quantum register
+                hidden_paulis=("X", "Y", "Z"),
+                backend=backend,
+            )
         else:
             model = FullyVisibleQBM(
                 generators=pauli_pool(n_visible, locality=locality), backend=backend

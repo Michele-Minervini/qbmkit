@@ -33,6 +33,24 @@ def test_learn_state_with_hidden_units_runs():
     assert res.relative_entropy < res.history.loss[0]
 
 
+def test_learn_state_with_hidden_units_learns_a_quantum_target():
+    # a target with coherences.  A semi-quantum RBM (Z alone on the visible units) has a
+    # diagonal visible state, so it can do no better than D(sigma || diag(sigma)); the
+    # fully quantum RBM that learn_state now defaults to has no such floor.
+    sigma = qbm.oracles.gibbs(qbm.hamiltonians.tfim(2, J=1.0, g=1.0), beta=1.0)
+    diag, spectrum = np.real(np.diag(sigma)), np.linalg.eigvalsh(sigma)
+    floor = float(np.sum(spectrum * np.log(spectrum)) - np.sum(diag * np.log(diag)))
+    assert floor > 0.5
+
+    res = qbm.learn_state(sigma, n_hidden=1, steps=300)
+    assert res.relative_entropy < 1e-5
+
+    semi = qbm.VisibleHiddenQBM(n_visible=2, n_hidden=1)
+    semi.theta = np.random.default_rng(0).normal(scale=0.05, size=semi.n_params)
+    stuck = qbm.learn_state(sigma, model=semi, steps=300)
+    assert np.isclose(stuck.relative_entropy, floor, atol=1e-6)
+
+
 def test_free_energy_task_reaches_exact_value():
     H = qbm.hamiltonians.tfim(3, J=1.0, g=1.0)
     res = qbm.free_energy_min(H, temperature=1.0, steps=400)
