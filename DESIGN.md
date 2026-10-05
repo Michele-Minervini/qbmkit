@@ -282,7 +282,7 @@ qbm.fit(model, loss=qbm.losses.RelativeEntropy(sigma), optimizer=qbm.optim.Adam(
 
 ```
 src/qbm/
-  operators.py        # PauliString helpers, ParamHamiltonian
+  operators.py        # pauli, generator sets (pauli_pool, rbm_generators), ParamHamiltonian
   channels.py         # belief-propagation multiplier phi(Delta), kernels
   backends/
     base.py           # Backend + ThermalState Protocols
@@ -421,8 +421,59 @@ an exact oracle, and the suite (100+ tests) gates every change across seven tier
   `generator_expectations()`, so **hidden-unit training runs on the tensor-network,
   circuit and Pauli-propagation backends** (matches the dense Frechet route to 4e-16).
   The map also supplies `log Z`, so the loss *value* survives on those backends too.
-- **v0.13+ (next)** — Petz–Tsallis loss; metrology / Cramér–Rao module; a vectorised
-  Pauli-propagation kernel; a cross-backend benchmark; docs site, PyPI release and DOI.
+- **v0.13 (on `main`, not yet released)** — **one description of every generator set**:
+  `pauli_pool` places Pauli words on a coupling graph (`"all"`, `"chain"`, `"ring"`,
+  `"grid"`, `"star"`, or an explicit edge list), and `rbm_generators` covers the
+  classical, semi-quantum and fully quantum restricted machines by the choice of
+  `visible_paulis` / `hidden_paulis`. `local_pauli_generators` is gone. **Dense-free
+  training path**: `RelativeEntropy` reads target moments from the Pauli labels and
+  accepts a probability vector, so `qbm.learn` on the tensor-network backend trains a
+  20-qubit model. `learn_state` with hidden units now uses a fully quantum RBM.
+- **v0.14+ (next)** — Petz–Tsallis loss; metrology / Cramér–Rao module; a vectorised
+  Pauli-propagation kernel with per-gate truncation; a cross-backend benchmark; docs site.
+
+**Generator-set note (v0.13).** There used to be two builders for one register:
+`local_pauli_generators` (chosen fields and couplings on a chain or all pairs) and
+`pauli_pool` (every Pauli up to a locality, on all pairs). Neither contained the other —
+the first could not go beyond two-body terms, the second could not restrict the graph or
+the operators — and the same nearest-neighbour list was hand-written a third time in the
+tensor-network tests. Both are the same object, *words on a graph*, so there is now one
+function with two ways to name the words: explicit `terms`, or `locality`/`paulis` for
+all of them. A `k`-letter word is placed on every connected set of `k` sites, which
+reduces to "every site" for fields, "every edge" for couplings and "every `k`-subset" on
+the complete graph. Generators are ordered word by word. Two silent failures went with
+the old code: a periodic chain on two sites returned `ZZ` twice (a singular metric), and
+`periodic=True` was ignored for all-to-all coupling; the first is now impossible and the
+second an error. Migration: `local_pauli_generators(n, fields=F, couplings=C,
+connectivity=c)` becomes `pauli_pool(n, terms=(*F, *C), connectivity=c)` with
+`connectivity="chain"` spelled out (the pool's default graph is `"all"`),
+`FullyVisibleQBM(fields=F, couplings=C)` becomes `FullyVisibleQBM(terms=(*F, *C))`, and
+`pauli_pool(n, 3)` becomes `pauli_pool(n, locality=3)`.
+
+The restricted machines follow the same rule. `rbm_generators` was hard-wired to `Z` on
+the visible units; it now takes `visible_paulis` as well, and that one argument is the
+whole difference between a semi-quantum and a fully quantum RBM. The default stays
+diagonal because classical data needs it — `G = ⊕_v G_h(v)` is what the closed-form
+marginal and the Gibbs map rest on — but a diagonal visible register also means a
+diagonal visible *state*, so a quantum target cannot be reached: `learn_state(sigma,
+n_hidden=1)` used to stall at exactly `D(sigma || diag(sigma))` (0.5517 for a two-qubit
+TFIM Gibbs state) and now reaches 1e-9.
+
+**Scaling note (v0.13).** The v0.8 note below ends with "any future backend that scales
+must avoid touching `.generators`" — but so must everything else on the training path,
+and two things did not. `RelativeEntropy` computed `Tr(sigma G_j)` from the dense
+generators (and its `value` built `G(theta)` as a matrix before asking for `log Z`), and
+`qbm.learn` passed the data as `diag(q)`. Either one re-imposed the `4^n` ceiling on a
+tensor-network run. Now the target moments come from the labels — a Pauli string has one
+nonzero per column, so `Tr(sigma P)` is a sum over `2^n` entries, and for a classical
+target one Walsh–Hadamard transform of `q` yields every `Z`-string moment — the loss
+accepts `q` itself, and `value` asks for `log Z` first. The same transform replaced the
+`2^n x n_terms` table behind the Pauli-propagation `probabilities()`. A test replaces
+`ParamHamiltonian.generators` with a tripwire and trains through it. What remains is each
+backend's own cost: the tensor network trains at 20 qubits; the Pauli-propagation engine
+truncates once per Trotter layer rather than per gate, so its working set inside a layer
+is far larger than what it retains (184k terms against 727 on a 10-qubit chain), which
+holds it to about ten qubits until that is changed.
 
 **Hidden-unit note (v0.12).** Before this, `MarginalNLL` was the only exact route and it
 needs `d_j rho` (`diagonal_gradient`), which capped hidden units at the dense ceiling —

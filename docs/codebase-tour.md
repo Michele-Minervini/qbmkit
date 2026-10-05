@@ -1,6 +1,6 @@
 # A guided tour of the qbmkit codebase
 
-A structured, 24-week reading path through all 6,143 lines of `src/qbm`, in dependency
+A structured, 24-week reading path through all 6,940 lines of `src/qbm`, in dependency
 order: nothing is read before the thing it rests on. It exists so that a maintainer — or
 a contributor who wants real ownership of a subsystem — can work through the library
 deliberately rather than by grep.
@@ -11,7 +11,7 @@ and lists **questions to answer**. The questions are the point: if you cannot an
 without re-reading, you have not finished the week.
 
 **Budget:** 1–3 hours per week. Weeks are sized by difficulty, not by line count — week 19
-is 744 lines and week 2 is 107, and they take about the same time.
+is 742 lines and week 2 is 110, and they take about the same time.
 
 **How to use a week.** Read the module top to bottom, including docstrings. Then run the
 verification *and predict the number before you look*. Then open the matching test file
@@ -28,20 +28,42 @@ would write differently; that list is your future contribution backlog.
 
 Everything else is a recombination of this phase. Do not skip ahead.
 
-### Week 1 — The object: `operators.py` (215)
+### Week 1 — The object: `operators.py` (440)
 **Claim.** A QBM model is nothing but a list of Hermitian generators plus which
-coefficients are free: `G(θ) = Σⱼ θⱼ Gⱼ`.
+coefficients are free: `G(θ) = Σⱼ θⱼ Gⱼ`. And every standard list is described the same
+way: *which Pauli words*, placed on *which coupling graph*.
 
-**Read.** `pauli`, `local_pauli_generators`, `pauli_pool`, `rbm_generators`,
-`ParamHamiltonian`.
+**Read.** `pauli`; then the two builders — `pauli_pool` (one register, any graph) and
+`rbm_generators` (the bipartite visible/hidden layout) — with the helpers they share;
+then `ParamHamiltonian`.
 
-**Verification.** `qbm.pauli("XIZ")` — predict its shape and its (0,7) entry before
-running. Then confirm generators are built **lazily**: instantiate a 20-qubit
-`ParamHamiltonian` and check it does not allocate.
+**Verification.**
 
-**Questions.** Why is `generators` a cached property rather than built in `__init__` — what
-breaks at 20 qubits if it isn't? What is `offset` for, and why does it leave every
-gradient formula unchanged?
+1. *A Pauli matrix by hand.* `qbm.pauli("XIZ")` is 8 × 8. Label its rows and columns by
+   bitstrings with qubit 0 leftmost, so row 0 is `000` and column 7 is `111`. An entry
+   of a tensor product is the product of one single-qubit entry per qubit, and `X`, `Y`
+   flip their bit while `I`, `Z` keep it — so every row has exactly one nonzero entry.
+   Predict, then check: in which column is the nonzero entry of row 0, and what is its
+   value? And for row 1 (`001`)?
+2. *One builder, two descriptions.* Write the transverse-field-Ising generators of an
+   open 4-qubit chain as a `pauli_pool` call and predict how many there are. Then
+   predict `len(qbm.pauli_pool(4))` (three Paulis per site, nine per pair), and the
+   number of couplings on a 2 × 3 `"grid"`. Which `rbm_generators` arguments give a
+   classical RBM, and which a fully quantum one?
+3. *Laziness.* "Lazy" means computed on first use rather than at construction. Build a
+   20-qubit Hamiltonian,
+   `ham = qbm.ParamHamiltonian(qbm.pauli_pool(20, terms=("Z", "X", "ZZ"), connectivity="chain"))`,
+   and check that `ham._mats is None`: only the 59 labels are stored, no matrix has been
+   built. Before you are tempted to read `ham.generators` at this size, work out how
+   many bytes one 2²⁰ × 2²⁰ complex matrix needs.
+
+**Questions.** Why is `generators` a cached property rather than built in `__init__` —
+which backends would be capped, and at how many qubits, if it were built eagerly?
+Laziness only protects code that never reads `.generators`: list its readers
+(`grep -rn "\.generators" src`) and say which of them a tensor-network training run
+passes through. Why must a generator never appear twice in the list — what happens to
+the metric — and which topology used to produce exactly that? What is `offset` for, and
+why does it leave every gradient formula unchanged?
 
 ### Week 2 — The primitive: `channels.py` (48) + `linalg.py` (62)
 **Claim.** The belief-propagation channel `Φ_θ(X) = ∫dt p(t) e^{-iGt} X e^{iGt}` is
@@ -83,16 +105,19 @@ what happens outside it? (arXiv:2510.02218 Thm 10, Fact 9.)
 
 ## Phase 2 · The learning layer (weeks 5–8)
 
-### Week 5 — Objectives I: `losses/base.py` (23) + `energy.py` (24) + `relative_entropy.py` (101)
+### Week 5 — Objectives I: `losses/base.py` (23) + `energy.py` (24) + `relative_entropy.py` (167)
 **Claim.** `∂ⱼ D(σ‖ρ) = ⟨Gⱼ⟩_σ − ⟨Gⱼ⟩_ρ` — exact even when the generators do not commute,
 because σ is fixed.
 
 **Verification.** Check that gradient against finite differences for a deliberately
 non-commuting generator set.
 
-**Questions.** Why is `RelativeEntropy(diag(q))` *not* the measured-distribution
-likelihood for non-commuting generators, and which class is? Why does `value` need
-`log Z` while `grad` does not — and which backends does that exclude?
+**Questions.** Why is `RelativeEntropy(q)` *not* the measured-distribution likelihood
+for non-commuting generators, and which class is? Why does `value` need `log Z` while
+`grad` does not — and which backends does that exclude? The target side `⟨Gⱼ⟩_σ` is
+computed from the Pauli *labels*: why does one Walsh–Hadamard transform of `q` give every
+`Z`-string moment of a classical target at once, and what would be built instead if the
+loss read `ham.generators`?
 
 ### Week 6 — Objectives II: `likelihood.py` (75) + `free_energy.py` (32) + `sdp.py` (69)
 **Claim.** Entropy-regularised SDP duality: the dual gradient is the constraint violation
@@ -115,17 +140,20 @@ gradient where plain SGD improves it.
 `FloatingPointError` rather than letting `lstsq` return garbage? What do `monitor=` and
 `stop=` exist for — which backend limitation forced each?
 
-### Week 8 — Models: `models/base.py` (59) + `fully_visible.py` (54) + `visible_hidden.py` (56)
+### Week 8 — Models: `models/base.py` (59) + `fully_visible.py` (64) + `visible_hidden.py` (76)
 **Claim.** A model is a parameter vector plus a backend; every read-out is delegated.
 
 **Questions.** Why does `qbm.learn` use a small random init rather than θ=0? Construct the
-flip-symmetric target where θ=0 is a saddle with an exactly-zero gradient.
+flip-symmetric target where θ=0 is a saddle with an exactly-zero gradient. A
+`VisibleHiddenQBM` with the default `visible_paulis=("Z",)` has a *diagonal* visible
+reduced state whatever its hidden units do — prove it from the block structure of `G`,
+then check it numerically and watch it fail for `visible_paulis=("Z", "X")`.
 
 ---
 
 ## Phase 3 · Variants and the public surface (weeks 9–11)
 
-### Week 9 — `models/sqrbm.py` (146)
+### Week 9 — `models/sqrbm.py` (130)
 **Claim.** For a semi-quantum RBM the hidden units decouple, so the visible marginal has
 a **closed form** in cosh/tanh — no Gibbs-state diagonalisation, cost independent of the
 hidden count.
@@ -145,11 +173,15 @@ reach, and the (θ,φ) QFI is block-structured. (arXiv:2501.03367 — your own p
 **Questions.** Why does `∂exp(-iH)` need the Daleckii–Krein kernel rather than a naive
 product rule?
 
-### Week 11 — The public surface: `tasks/` (360) + `facade.py` (98) + `registry.py` (140)
+### Week 11 — The public surface: `tasks/` (395) + `facade.py` (133) + `registry.py` (140)
 **Claim.** Every research question is one call, and every default is overridable.
 
 **Questions.** How does the registry avoid importing JAX at `import qbm` time — and which
-test enforces that it stays that way?
+test enforces that it stays that way? Why does `learn_state` switch to a fully quantum
+RBM as soon as `n_hidden > 0` (week 8 has the answer), and what is the best relative
+entropy the semi-quantum one could reach on a target with coherences? Why does the KL
+monitor of `qbm.learn` read the state the step already built instead of calling
+`model.kl`?
 
 ---
 
@@ -168,12 +200,18 @@ every formula in Phase 1.
 **Questions.** Why does `eigh`'s VJP produce `NaN` at degenerate eigenvalues, and what
 does the analytic fallback do? (This was a real CI-only bug — LAPACK-dependent.)
 
-### Week 14 — `backends/tensor_network.py` (233)
+### Week 14 — `backends/tensor_network.py` (240)
 **Claim.** A purified MPS reaches 20 qubits at bond dimension 4 where a dense ρ would
 need ~17 TB.
 
+**Verification.** Run `examples/06_tensor_network_scaling.py`: its last part trains a
+16-qubit model and recovers the couplings of the Ising chain that generated the data.
+Confirm that `model.ham._mats` is still `None` afterwards.
+
 **Questions.** Why are only 1- and 2-body Pauli generators supported? Why does this
-backend refuse metrics rather than approximating them?
+backend refuse metrics rather than approximating them? At 16 qubits `history.loss` is
+all `nan` and `history.monitor` is empty — which two quantities are missing, and what is
+the training curve you still have?
 
 ### Week 15 — `sampling.py` (133) + `gibbs_map.py` (237)
 **Claim.** With a diagonal visible register `G = ⊕ᵥ G_h(v)`, so the hidden register can be
@@ -208,7 +246,7 @@ leaves a trace invariant. This was a real bug.)
 **Claim.** Both the energy gradient and the α-z information matrix are one shape: a
 covariance of two operators, one smeared by `Φ`.
 
-### Week 19 — `circuits/varqite.py` (744) — *the biggest module; give it two sittings*
+### Week 19 — `circuits/varqite.py` (742) — *the biggest module; give it two sittings*
 **Claim.** McLachlan's principle on the TFD gives `A λ̇ = C` with `A` the quantum geometric
 tensor and `C = −½∇⟨H⟩` — i.e. **quantum natural gradient flow**.
 
@@ -229,7 +267,13 @@ branches only on **commutation**, `P → cosh(2θ)P − sinh(2θ)PG`.
 **Verification.** Re-derive the product phase `i^{eP+eQ-eR}(-1)^{⟨zP,xQ⟩}` and check it
 against dense matrices. Confirm the ITE is *exact* for a commuting Hamiltonian at L=1.
 
-### Week 21 — `pauli_prop.py` part 2: sampler (~250–379) + `backends/pauli_propagation.py` (201)
+**Questions.** `thermal_state` truncates once per Trotter *layer*, not after every gate.
+For a 10-qubit chain with `coeff_cutoff=1e-3, max_weight=3`, count the terms held inside
+a layer and compare with the number retained at its end. What does the ratio imply for
+the largest size this engine reaches, and what would truncating after every gate change —
+in cost, and in the result?
+
+### Week 21 — `pauli_prop.py` part 2: sampler (~250–385) + `backends/pauli_propagation.py` (201)
 **Claim.** Truncation can push ρ out of the PSD cone; the locally normalised chain rule
 still yields a valid distribution, with exact pointwise likelihoods.
 
@@ -239,7 +283,7 @@ coefficient truncation more effective than weight truncation on dense Hamiltonia
 ### Week 22 — Adapters and periphery: `circuits/adapters/` (259) + `diagnostics.py` (68) + `data/` (135)
 **Questions.** If Qiskit 3.0 breaks tomorrow, exactly which files change?
 
-### Week 23 — The test suite: `tests/` (~3,200)
+### Week 23 — The test suite: `tests/` (~3,900)
 Read the tests as *specification*. For each of the seven tiers, find one test you could
 break with a plausible bug — and one you could not.
 

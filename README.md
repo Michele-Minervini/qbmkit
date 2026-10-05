@@ -101,7 +101,7 @@ For development, in a virtual environment:
 git clone https://github.com/Michele-Minervini/qbmkit && cd qbmkit
 python3 -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"          # + pytest, ruff, matplotlib, nbclient
-pytest                           # 292 tests
+pytest                           # 407 tests
 ```
 
 > Notes
@@ -133,6 +133,49 @@ pip install -e ".[notebooks]"
 jupyter lab notebooks/
 ```
 
+## Generator sets: operators on a graph
+
+A model is its list of generators, and every standard list is described the same way —
+*which Pauli words*, placed on *which coupling graph*:
+
+```python
+qbm.pauli_pool(4, terms=("Z", "X", "ZZ"), connectivity="chain")       # transverse-field-Ising family
+qbm.pauli_pool(6, terms=("Z", "X", "ZZ"), connectivity="grid", shape=(2, 3))
+qbm.pauli_pool(4, terms=("XX", "YY", "ZZ"), connectivity=[(0, 1), (1, 2), (0, 3)])   # any graph
+qbm.pauli_pool(4)                 # no terms: every 1- and 2-body Pauli -- the complete pool
+qbm.pauli_pool(4, locality=3)     # ... up to 3-body
+```
+
+A one-letter word is a field on every qubit, a two-letter word a coupling on every edge,
+and a `k`-letter word a term on every connected set of `k` qubits. The graph is `"all"`,
+`"chain"`, `"ring"`, `"grid"` (a torus with `periodic=True`), `"star"`, or an explicit
+list of edges. The same `connectivity` argument is accepted by `FullyVisibleQBM`,
+`qbm.learn`, `qbm.ground_state` and `qbm.free_energy_min`:
+
+```python
+qbm.free_energy_min(H_periodic, connectivity="ring")
+qbm.FullyVisibleQBM(n=9, terms=("Z", "X", "ZZ"), connectivity="grid")    # 3 x 3 lattice
+```
+
+Matching the graph to the problem is not cosmetic: a QBM on a ring holds the Gibbs state
+of a periodic TFIM exactly (free-energy error 1e-15), and the same model on an open chain
+cannot (7e-2).
+
+Models with hidden units use the bipartite counterpart, where the choice of operators
+selects the machine:
+
+```python
+qbm.rbm_generators(4, 2, hidden_paulis=("Z",))              # classical RBM
+qbm.rbm_generators(4, 2)                                    # semi-quantum RBM (the default)
+qbm.rbm_generators(4, 2, visible_paulis=("X", "Y", "Z"),
+                         hidden_paulis=("X", "Y", "Z"))     # fully quantum RBM
+```
+
+Classical data wants the diagonal visible register of the first two: it is what makes
+the closed-form marginal and the [Gibbs map](#hidden-units-at-scale-the-gibbs-map)
+possible. A quantum target needs the third — with `Z` alone the visible state is diagonal
+whatever the hidden units do — so `qbm.learn_state(sigma, n_hidden=...)` uses it.
+
 ## Backends
 
 The engine is a swap seam (`qbm.get_backend(...)`); the same models/losses/metrics
@@ -145,9 +188,12 @@ run on any backend:
   `jax.jacrev`), GPU-capable; reproduces the analytic engine to ~1e-15.
 - **`tensor_network`** (`pip install qbmkit[tn]`) — thermal state as a **purified
   matrix-product state**, for expectation-based training (relative entropy / NLL)
-  well past the dense ceiling: 20 qubits in ~1 s at bond dimension 4, where a dense
-  density matrix would need ~17 TB. Metrics and the energy gradient are not available
-  there and raise a clear error.
+  well past the dense ceiling: a 20-qubit state takes a couple of seconds at bond
+  dimension 4, where a dense density matrix would need ~17 TB, and `qbm.learn` recovers
+  all 59 parameters of a 20-qubit Ising chain to 2e-3 in about 100 s. Nothing of size
+  `4ⁿ` is built on that path — the data enter through their moments, read from the Pauli
+  labels ([example 06](examples/06_tensor_network_scaling.py)). Metrics and the energy
+  gradient are not available there and raise a clear error.
 - **`pauli_propagation`** — thermal state as a **sparse sum of Pauli strings** evolved
   under imaginary time (arXiv:2602.04878). Exact for commuting (classical) Hamiltonians,
   first-order-Trotter otherwise, and **topology-agnostic** (all-to-all costs the same as a
@@ -364,19 +410,25 @@ verify it, and what to be able to answer — see the
 
 ## Status
 
+> `main` is ahead of the latest release (0.12.1). The generator-set API described above —
+> `pauli_pool(n, terms=..., connectivity=...)`, the coupling graphs, `visible_paulis` —
+> and training past the dense ceiling through `qbm.learn` ship in 0.13; until then
+> install from source to use them.
+
 v0.12 — one-call **task layer** (generative, ground state, state learning,
 free energy, **SDP**); dense + statevector (TFD purification + shots) + **JAX
 autodiff** + **tensor-network** + **circuit** + **Pauli-propagation** backends behind a
 registry seam, with **VarQITE** variational Gibbs preparation on the circuit route and
 imaginary-time **Pauli propagation** (sparse-Pauli engine + locally normalised sampler);
 sample-based
-training (block-Gibbs / contrastive divergence); fully-visible, visible+hidden,
-**semi-quantum RBM** (closed-form) and **Evolved QBM** models; relative-entropy /
+training (block-Gibbs / contrastive divergence); fully-visible (on any coupling graph),
+visible+hidden (classical, semi-quantum or fully quantum RBM), **semi-quantum RBM**
+(closed-form) and **Evolved QBM** models; relative-entropy /
 energy / marginal-NLL / sqRBM-NLL / free-energy / quantum-target-relative-entropy /
 SDP-dual losses, plus autodiff of arbitrary density-matrix objectives; GD / Adam /
 quantum natural gradient; **arbitrary QFI metrics** (the α-z family plus user kernels,
 with Kubo–Mori / Fisher–Bures / Wigner–Yanase as special cases);
-barren-plateau diagnostics. **292 tests** across seven tiers — exact oracles, finite
+barren-plateau diagnostics. **407 tests** across seven tiers — exact oracles, finite
 differences, autodiff (~1e-15), cross-backend agreement, strong duality/KKT with an
 independent reference SDP solver, **four paper reproductions**
 ([`tests/reproductions/`](tests/reproductions)), Hypothesis property-based tests, and
