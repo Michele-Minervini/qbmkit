@@ -180,16 +180,12 @@ class PauliSum:
         negative (the "sign problem" the sampler is designed around).  They sum to one
         when the identity coefficient is normalised.
         """
-        n = self.n_qubits
+        # p(x) = sum_z c_z (-1)^{|x & z|} is the Walsh-Hadamard transform of the diagonal
+        # coefficients: O(n 2^n) time and 2^n memory, however many terms are retained
         zs, cs = self._diagonal_terms()
-        x = np.arange(2**n, dtype=np.int64)
-        if zs.size == 0:
-            return np.full(2**n, cs.sum() if cs.size else 0.0)
-        # parity of (x AND z) for every basis state and every diagonal term
-        inter = x[:, None] & zs[None, :]
-        parity = _popcount_array(inter) & 1
-        signs = 1 - 2 * parity  # (2^n, n_diag)
-        return signs @ cs
+        spectrum = np.zeros(2**self.n_qubits)
+        spectrum[zs] = cs
+        return _walsh_hadamard(spectrum)
 
     def sample(self, n_samples: int, rng=None) -> np.ndarray:
         """Draw computational-basis bitstrings with the locally normalised sampler.
@@ -265,6 +261,16 @@ class PauliSum:
         """
         w = np.linalg.eigvalsh(self.to_matrix())
         return float(-w[w < 0].sum())
+
+
+def _walsh_hadamard(a: np.ndarray) -> np.ndarray:
+    """``out[x] = sum_z a[z] (-1)^{popcount(x & z)}`` for a length-``2^n`` vector."""
+    size, half = a.size, 1
+    while half < size:
+        pairs = a.reshape(-1, 2, half)
+        a = np.stack([pairs[:, 0] + pairs[:, 1], pairs[:, 0] - pairs[:, 1]], axis=1)
+        half *= 2
+    return a.reshape(size)
 
 
 def _popcount_array(a: np.ndarray) -> np.ndarray:

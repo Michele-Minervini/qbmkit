@@ -1,7 +1,8 @@
 """Quantum relative entropy ``D(sigma || rho(theta))``.
 
-For a fixed target ``sigma`` (a quantum state, or ``diag(q)`` for a classical
-distribution) the gradient is the classic positive/negative phase difference::
+For a fixed target ``sigma`` (a quantum state, or a classical distribution ``q``
+standing for ``diag(q)``) the gradient is the classic positive/negative phase
+difference::
 
     d_j D(sigma || rho) = <G_j>_sigma - <G_j>_rho
 
@@ -10,6 +11,14 @@ cheap (only generator expectations).  Note: for non-commuting generators
 ``D(diag(q) || rho)`` is *not* the measured-distribution likelihood (that is
 :class:`qbm.losses.NLL`); it is the relative-entropy objective, equal to the NLL
 only in the commuting/diagonal case and an upper bound otherwise.
+
+**Scaling.**  The target side ``<G_j>_sigma`` is evaluated from the Pauli *labels* of
+the generators, never from their dense matrices: a Pauli string has one nonzero per
+row, so ``Tr(sigma P)`` is a sum over ``2^n`` entries of ``sigma``, and for a classical
+target ``q`` every ``Z``-string moment is one entry of the Walsh-Hadamard transform of
+``q``.  A backend that prepares ``rho(theta)`` without dense matrices (tensor network,
+Pauli propagation) therefore trains on this loss without anything of size ``4^n`` ever
+being built.
 """
 
 from __future__ import annotations
@@ -17,6 +26,7 @@ from __future__ import annotations
 import numpy as np
 
 from ..linalg import log_divided_differences, partial_trace_hidden
+from ..pauli_prop import _popcount, _popcount_array, _walsh_hadamard, label_to_xz
 from .base import Loss
 
 
@@ -29,29 +39,85 @@ def _entropy_term(sigma: np.ndarray) -> float:
 
 
 class RelativeEntropy(Loss):
-    """``L(theta) = D(sigma || rho(theta))`` for a fixed target density matrix."""
+    """``L(theta) = D(sigma || rho(theta))`` for a fixed target.
+
+    Parameters
+    ----------
+    sigma : ndarray
+        The target.  A 2-D array is a density matrix.  A 1-D array is a classical
+        distribution ``q`` over the ``2^n`` computational-basis states (qubit 0 the most
+        significant bit) and stands for ``diag(q)`` -- which is never built, so classical
+        data costs ``2^n`` numbers rather than ``4^n``.
+    """
 
     def __init__(self, sigma: np.ndarray):
-        self.sigma = np.asarray(sigma, dtype=complex)
-        self._const = _entropy_term(self.sigma)
+        sigma = np.asarray(sigma)
+        if sigma.ndim == 1:  # classical target q, standing for diag(q)
+            if sigma.size & (sigma.size - 1) or sigma.size < 2:
+                raise ValueError(f"a probability vector needs length 2^n; got {sigma.size}")
+            self.sigma = None
+            self.q = np.real(sigma).astype(float)
+            # <Z-string>_q for every Z-string at once: moments[z] = sum_v q_v (-1)^{|v & z|}
+            self._moments = _walsh_hadamard(self.q)
+            support = self.q[self.q > 0]
+            self._const = float(np.sum(support * np.log(support)))
+        elif sigma.ndim == 2 and sigma.shape[0] == sigma.shape[1]:
+            self.sigma = sigma.astype(complex)
+            self._index = np.arange(sigma.shape[0])
+            self._const = _entropy_term(self.sigma)
+        else:
+            raise ValueError(
+                "the target must be a density matrix (2-D, square) or a probability "
+                f"vector (1-D); got an array of shape {sigma.shape}"
+            )
         self._sigma_gen_exp = None  # cache of [Tr(sigma G_j)] keyed on ham id
         self._sigma_gen_key = None
 
+    # -- target expectations ------------------------------------------------
+    def _expect_pauli(self, label: str) -> float:
+        """``Tr(sigma P)`` for a Pauli string, from its label alone.
+
+        ``P = i^{|x & z|} X^x Z^z`` sends ``|c>`` to ``(-1)^{|c & z|} |c xor x>`` (up to
+        that phase), so it has a single nonzero per column and the trace is a sum over
+        the ``2^n`` entries ``sigma[c, c xor x]``.
+        """
+        x, z = label_to_xz(label)
+        if self.sigma is None:  # X/Y strings are off-diagonal: no weight on diag(q)
+            return 0.0 if x else float(self._moments[z])
+        c = self._index
+        signs = 1 - 2 * (_popcount_array(c & z) & 1)
+        phase = 1j ** (_popcount(x & z) % 4)
+        return float(np.real(phase * np.sum(self.sigma[c, c ^ x] * signs)))
+
+    def _expect_dense(self, op: np.ndarray) -> float:
+        """``Tr(sigma O)`` for a dense operator (matrix generators, the offset)."""
+        if self.sigma is None:
+            return float(np.real(np.diag(op)) @ self.q)
+        return float(np.real(np.sum(self.sigma * op.T)))
+
     def _target_generator_expectations(self, state) -> np.ndarray:
-        key = id(state.ham)
+        ham = state.ham
+        key = id(ham)
         if self._sigma_gen_key != key:
-            self._sigma_gen_exp = np.array(
-                [float(np.real(np.trace(self.sigma @ g))) for g in state.ham.generators]
-            )
+            labels = getattr(ham, "pauli_labels", None)
+            if labels is not None:  # the scalable route: dense generators stay unbuilt
+                vals = [self._expect_pauli(lbl) for lbl in labels]
+            else:
+                vals = [self._expect_dense(g) for g in ham.generators]
+            self._sigma_gen_exp = np.array(vals)
             self._sigma_gen_key = key
         return self._sigma_gen_exp
 
     def value(self, state) -> float:
         # D = Tr(sigma ln sigma) - Tr(sigma ln rho);  ln rho = -G(theta) - ln Z
-        #   = const + Tr(sigma G(theta)) + ln Z
-        G = state.ham.matrix(state.theta)
-        tr_sigma_G = float(np.real(np.trace(self.sigma @ G)))
-        return self._const + tr_sigma_G + state.log_partition()
+        #   = const + Tr(sigma G(theta)) + ln Z,  Tr(sigma G) = sum_j theta_j <G_j>_sigma
+        # ln Z comes first: a backend that cannot provide it says so before any work
+        log_z = state.log_partition()
+        tr_sigma_G = float(self._target_generator_expectations(state) @ state.theta)
+        offset = getattr(state.ham, "offset", None)
+        if offset is not None:
+            tr_sigma_G += self._expect_dense(offset)
+        return self._const + tr_sigma_G + log_z
 
     def grad(self, state) -> np.ndarray:
         return self._target_generator_expectations(state) - state.generator_expectations()

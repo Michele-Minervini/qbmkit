@@ -154,6 +154,13 @@ class TensorNetworkThermalState:
         return rho / np.trace(rho)
 
     def probabilities(self) -> np.ndarray:
+        """All ``2^n`` computational-basis probabilities (small ``n`` only)."""
+        if self.n_qubits > 14:
+            raise NotImplementedError(
+                f"the full distribution over 2^{self.n_qubits} outcomes is not available "
+                "on the tensor-network backend at this size; use sample() or expect() "
+                "with Pauli labels instead"
+            )
         return np.real(np.diag(self.density_matrix()))
 
     def sample(self, n: int, rng=None) -> np.ndarray:

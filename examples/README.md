@@ -10,7 +10,7 @@ Run any of them with `python examples/<file>.py` (from the repo root, in the ven
 | 03 | [`03_state_learning.py`](03_state_learning.py) | Learn a target quantum state by relative-entropy minimisation | D → machine precision |
 | 04 | [`04_free_energy_minimization.py`](04_free_energy_minimization.py) | Variational free energy / Gibbs preparation at several temperatures | matches exact to ~1e-15 |
 | 05 | [`05_semidefinite_program.py`](05_semidefinite_program.py) | Solve an SDP through the QBM core (unconstrained + constrained) | strong duality to ~1e-15 |
-| 06 | [`06_tensor_network_scaling.py`](06_tensor_network_scaling.py) | Purified-MPS backend past the dense ceiling (needs `[tn]`) | n=20 in ~1 s; matches dense to 1e-6 |
+| 06 | [`06_tensor_network_scaling.py`](06_tensor_network_scaling.py) | Purified-MPS backend past the dense ceiling, including training there (needs `[tn]`) | matches dense to 1e-6; n=20 state in ~2 s; 16-qubit model trained, parameters recovered to 1e-3 |
 | 07 | [`07_varqite_gibbs_preparation.py`](07_varqite_gibbs_preparation.py) | Variational Gibbs preparation from expectation values only | exact for commuting H; Hadamard route to 1e-15 |
 | 08 | [`08_training_with_varqite.py`](08_training_with_varqite.py) | Full QBM training on variationally prepared states (+ shot noise, + the residual guard) | KL matches exact training to 3e-4 |
 | 09 | [`09_pauli_propagation.py`](09_pauli_propagation.py) | Thermal states as sparse Pauli sums; the locally normalised sampler; generative QBM training in the Pauli basis | KL matches exact training to 4e-5 |
