@@ -4,7 +4,7 @@ import numpy as np
 
 import qbm
 from qbm.losses import Energy, RelativeEntropy
-from qbm.operators import ParamHamiltonian, local_pauli_generators
+from qbm.operators import ParamHamiltonian, pauli_pool
 
 
 def test_classical_bm_reproduces_boltzmann_distribution():
@@ -25,7 +25,7 @@ def test_classical_bm_reproduces_boltzmann_distribution():
 def test_state_learning_recovers_realizable_target():
     # Target is a Gibbs state in the model's generator span -> loss must reach ~0.
     n = 3
-    ham = ParamHamiltonian(local_pauli_generators(n))
+    ham = ParamHamiltonian(pauli_pool(n, terms=("Z", "X", "ZZ"), connectivity="chain"))
     rng = np.random.default_rng(1)
     theta_true = rng.normal(scale=0.4, size=ham.n_params)
     sigma = qbm.DenseBackend().thermal_state(ham, theta_true).density_matrix()
@@ -61,12 +61,12 @@ def test_generative_learns_realizable_distribution():
     # A target that the (classical/diagonal) model can represent exactly: the
     # convex NLL must drive KL to ~0.
     n = 4
-    ham = ParamHamiltonian(local_pauli_generators(n, fields=("Z",), couplings=("ZZ",)))
+    ham = ParamHamiltonian(pauli_pool(n, terms=("Z", "ZZ"), connectivity="chain"))
     rng = np.random.default_rng(0)
     theta_true = rng.normal(scale=0.5, size=ham.n_params)
     q = qbm.DenseBackend().thermal_state(ham, theta_true).probabilities()
 
-    model = qbm.FullyVisibleQBM(n=n, fields=("Z",), couplings=("ZZ",))
+    model = qbm.FullyVisibleQBM(n=n, terms=("Z", "ZZ"))
     qbm.fit(
         model,
         qbm.losses.NLL(q),

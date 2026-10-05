@@ -3,7 +3,7 @@
 import numpy as np
 
 import qbm
-from qbm.operators import ParamHamiltonian, local_pauli_generators
+from qbm.operators import ParamHamiltonian, pauli_pool
 
 
 def _state(generators, scale=0.5, seed=0, n=3):
@@ -18,7 +18,7 @@ def _psd(M, tol=1e-9):
 
 
 def test_metrics_symmetric_and_psd():
-    state = _state(local_pauli_generators(3), seed=1)
+    state = _state(pauli_pool(3, terms=("Z", "X", "ZZ"), connectivity="chain"), seed=1)
     for kind in ("kubo_mori", "fisher_bures", "wigner_yanase"):
         g = state.metric(kind)
         assert np.allclose(g, g.T, atol=1e-9)
@@ -27,7 +27,7 @@ def test_metrics_symmetric_and_psd():
 
 def test_loewner_orderings():
     # g_FB <= g_WY <= 2 g_FB   and   g_KM >= g_FB
-    state = _state(local_pauli_generators(3), seed=2, scale=0.6)
+    state = _state(pauli_pool(3, terms=("Z", "X", "ZZ"), connectivity="chain"), seed=2, scale=0.6)
     fb = state.metric("fisher_bures")
     wy = state.metric("wigner_yanase")
     km = state.metric("kubo_mori")
@@ -51,7 +51,7 @@ def test_classical_limit_metrics_coincide():
 def test_metrics_finite_at_low_temperature():
     # Regression: at very low temperature the Boltzmann factors underflow to exactly
     # zero; the metric weights must stay finite instead of producing NaNs.
-    ham = ParamHamiltonian(local_pauli_generators(3))
+    ham = ParamHamiltonian(pauli_pool(3, terms=("Z", "X", "ZZ"), connectivity="chain"))
     state = qbm.DenseBackend().thermal_state(ham, np.full(ham.n_params, 300.0))
     assert state.p.min() == 0.0
     for kind in ("kubo_mori", "fisher_bures", "wigner_yanase"):
@@ -65,7 +65,7 @@ def test_kubo_mori_is_free_energy_hessian():
     # generators in the canonical-correlation sense). Check against a finite-diff
     # Hessian of log Z.
     rng = np.random.default_rng(5)
-    ham = ParamHamiltonian(local_pauli_generators(3))
+    ham = ParamHamiltonian(pauli_pool(3, terms=("Z", "X", "ZZ"), connectivity="chain"))
     theta = rng.normal(scale=0.4, size=ham.n_params)
     backend = qbm.DenseBackend()
 

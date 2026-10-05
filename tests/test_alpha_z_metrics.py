@@ -9,11 +9,11 @@ import pytest
 
 import qbm
 from qbm.metrics import AlphaZ, CustomMetric, PetzRenyi, SandwichedRenyi, alpha_z_is_monotone
-from qbm.operators import ParamHamiltonian, local_pauli_generators
+from qbm.operators import ParamHamiltonian, pauli_pool
 
 
 def _state(seed=0, n=3, scale=0.5):
-    ham = ParamHamiltonian(local_pauli_generators(n))
+    ham = ParamHamiltonian(pauli_pool(n, terms=("Z", "X", "ZZ"), connectivity="chain"))
     theta = np.random.default_rng(seed).normal(scale=scale, size=ham.n_params)
     return ham, theta, qbm.DenseBackend().thermal_state(ham, theta)
 

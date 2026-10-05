@@ -9,12 +9,12 @@ import pytest
 pytest.importorskip("jax")
 
 import qbm
-from qbm.operators import ParamHamiltonian, local_pauli_generators
+from qbm.operators import ParamHamiltonian, pauli_pool
 
 
 def _ham_theta(n=3, seed=0):
     rng = np.random.default_rng(seed)
-    ham = ParamHamiltonian(local_pauli_generators(n))
+    ham = ParamHamiltonian(pauli_pool(n, terms=("Z", "X", "ZZ"), connectivity="chain"))
     return ham, rng.normal(scale=0.5, size=ham.n_params)
 
 
@@ -82,7 +82,7 @@ def test_degenerate_spectrum_falls_back_to_analytic():
     # coincide, so jax.grad/jacrev return NaN there. The backend must fall back to the
     # exact analytic derivative (which takes the degenerate limit correctly) and agree
     # with the dense engine, rather than poisoning the optimizer with NaNs.
-    ham = ParamHamiltonian(local_pauli_generators(3))
+    ham = ParamHamiltonian(pauli_pool(3, terms=("Z", "X", "ZZ"), connectivity="chain"))
     theta = np.zeros(ham.n_params)  # G = 0: fully degenerate spectrum
     dense = qbm.DenseBackend().thermal_state(ham, theta)
     jx = qbm.get_backend("jax").thermal_state(ham, theta)

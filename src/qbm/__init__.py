@@ -42,7 +42,6 @@ from .facade import learn
 from .models import EvolvedQBM, FullyVisibleQBM, Model, SemiQuantumRBM, VisibleHiddenQBM
 from .operators import (
     ParamHamiltonian,
-    local_pauli_generators,
     pauli,
     pauli_pool,
     rbm_generators,
@@ -84,7 +83,6 @@ __all__ = [
     "Model",
     "ParamHamiltonian",
     "pauli",
-    "local_pauli_generators",
     "pauli_pool",
     "rbm_generators",
     "Backend",

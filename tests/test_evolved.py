@@ -4,12 +4,12 @@ import numpy as np
 
 import qbm
 from qbm.losses import Energy, MarginalRelativeEntropy
-from qbm.operators import ParamHamiltonian, local_pauli_generators
+from qbm.operators import ParamHamiltonian, pauli_pool
 
 
 def _model(n=2, seed=0, phi_scale=0.5):
     rng = np.random.default_rng(seed)
-    G = local_pauli_generators(n)
+    G = pauli_pool(n, terms=("Z", "X", "ZZ"), connectivity="chain")
     Hgen = [["I"] * n for _ in range(n)]
     for i in range(n):
         Hgen[i][i] = "Y"
@@ -42,7 +42,7 @@ def _fd(model, loss, eps=1e-6):
 def test_reduces_to_qbm_at_phi_zero():
     rng = np.random.default_rng(1)
     n = 3
-    G = local_pauli_generators(n)
+    G = pauli_pool(n, terms=("Z", "X", "ZZ"), connectivity="chain")
     theta = rng.normal(scale=0.5, size=len(G))
     m = qbm.EvolvedQBM(G, ["XII", "IXI", "IIX"], theta=theta, phi=np.zeros(3))
     rho = qbm.DenseBackend().thermal_state(ParamHamiltonian(G), theta).density_matrix()
@@ -89,7 +89,7 @@ def test_metric_properties_and_reduction():
 
     # phi = 0 reduction of the theta-theta block
     rng = np.random.default_rng(7)
-    G = local_pauli_generators(2)
+    G = pauli_pool(2, terms=("Z", "X", "ZZ"), connectivity="chain")
     theta = rng.normal(scale=0.4, size=len(G))
     m0 = qbm.EvolvedQBM(G, ["YI", "IY"], theta=theta, phi=np.zeros(2))
     inner = qbm.DenseBackend().thermal_state(ParamHamiltonian(G), theta)
@@ -101,7 +101,7 @@ def test_ground_state_energy_with_evolution():
     n = 3
     H = qbm.hamiltonians.tfim(n, J=1.0, g=1.2)
     e0 = qbm.oracles.ground_energy(H)
-    G = local_pauli_generators(n)
+    G = pauli_pool(n, terms=("Z", "X", "ZZ"), connectivity="chain")
     m = qbm.EvolvedQBM(G, ["XII", "IXI", "IIX"])
     m.theta = np.concatenate(
         [

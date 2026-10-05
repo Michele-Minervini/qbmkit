@@ -11,11 +11,11 @@ from qbm.circuits import Circuit, builder, densities, simulator
 from qbm.circuits.adapters import available_adapters, to_qasm3
 from qbm.circuits.estimators import energy_gradient, information_matrix
 from qbm.metrics import AlphaZ
-from qbm.operators import ParamHamiltonian, local_pauli_generators
+from qbm.operators import ParamHamiltonian, pauli_pool
 
 
 def _model(n=3, seed=0, scale=0.4):
-    ham = ParamHamiltonian(local_pauli_generators(n))
+    ham = ParamHamiltonian(pauli_pool(n, terms=("Z", "X", "ZZ"), connectivity="chain"))
     theta = np.random.default_rng(seed).normal(scale=scale, size=ham.n_params)
     return ham, theta
 

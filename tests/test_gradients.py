@@ -5,7 +5,7 @@ import pytest
 
 import qbm
 from qbm.losses import NLL, Energy, RelativeEntropy
-from qbm.operators import ParamHamiltonian, local_pauli_generators
+from qbm.operators import ParamHamiltonian, pauli_pool
 
 
 def _finite_diff(loss, ham, theta, eps=1e-6):
@@ -31,7 +31,7 @@ def _analytic(loss, ham, theta):
 def setup():
     rng = np.random.default_rng(7)
     n = 3
-    ham = ParamHamiltonian(local_pauli_generators(n))
+    ham = ParamHamiltonian(pauli_pool(n, terms=("Z", "X", "ZZ"), connectivity="chain"))
     theta = rng.normal(scale=0.4, size=ham.n_params)
     return rng, n, ham, theta
 
@@ -61,7 +61,7 @@ def test_nll_gradient(setup):
 def test_relative_entropy_nonnegative_and_zero_at_self():
     # D(sigma||sigma) = 0 and D >= 0
     rng = np.random.default_rng(11)
-    ham = ParamHamiltonian(local_pauli_generators(3))
+    ham = ParamHamiltonian(pauli_pool(3, terms=("Z", "X", "ZZ"), connectivity="chain"))
     theta = rng.normal(scale=0.5, size=ham.n_params)
     state = qbm.DenseBackend().thermal_state(ham, theta)
     sigma = state.density_matrix()

@@ -32,7 +32,7 @@ for L in (8, 64):
 
 # --- 2. truncation trades retained terms for accuracy -------------------------
 print("\ntruncation on a 4-qubit all-to-all Hamiltonian (full operator = 256 Paulis):")
-ham = qbm.ParamHamiltonian(qbm.local_pauli_generators(4, connectivity="all"))
+ham = qbm.ParamHamiltonian(qbm.pauli_pool(4, terms=("Z", "X", "ZZ")))
 theta = np.random.default_rng(1).normal(scale=0.5, size=ham.n_params)
 dense = qbm.DenseBackend().thermal_state(ham, theta).density_matrix()
 for cutoff in (1e-1, 1e-3, 1e-6):

@@ -5,12 +5,12 @@ import scipy.linalg as sla
 
 import qbm
 from qbm.backends.dense import DenseThermalState
-from qbm.operators import ParamHamiltonian, local_pauli_generators
+from qbm.operators import ParamHamiltonian, pauli_pool
 
 
 def _random_model(n=3, scale=0.4, seed=0):
     rng = np.random.default_rng(seed)
-    ham = ParamHamiltonian(local_pauli_generators(n))
+    ham = ParamHamiltonian(pauli_pool(n, terms=("Z", "X", "ZZ"), connectivity="chain"))
     theta = rng.normal(scale=scale, size=ham.n_params)
     return ham, theta
 
@@ -53,7 +53,7 @@ def test_expect_matches_trace():
 def test_overflow_safe():
     # A Hamiltonian with a strongly negative eigenvalue: naive expm(-G) overflows,
     # eigendecomposition stays finite and normalised.
-    ham = ParamHamiltonian(local_pauli_generators(4))
+    ham = ParamHamiltonian(pauli_pool(4, terms=("Z", "X", "ZZ"), connectivity="chain"))
     theta = np.full(ham.n_params, 3.0)
     state = DenseThermalState(ham, theta)
     assert np.isfinite(state.log_partition())

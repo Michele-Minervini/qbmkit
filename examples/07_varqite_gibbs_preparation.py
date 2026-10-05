@@ -50,7 +50,7 @@ print(f"   max |A_measured - A_exact| = {np.max(np.abs(A - exact['A'])):.1e}")
 print(f"   max |C_measured - C_exact| = {np.max(np.abs(C - exact['C'])):.1e}")
 
 # --- 5. drop it into a QBM: same API, now device-ready -----------------------
-ham = qbm.ParamHamiltonian(qbm.local_pauli_generators(2))
+ham = qbm.ParamHamiltonian(qbm.pauli_pool(2, terms=("Z", "X", "ZZ"), connectivity="chain"))
 theta = np.random.default_rng(0).normal(scale=0.4, size=ham.n_params)
 dense = qbm.DenseBackend().thermal_state(ham, theta)
 O = qbm.hamiltonians.tfim(2, g=1.2)

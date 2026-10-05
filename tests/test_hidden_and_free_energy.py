@@ -4,7 +4,7 @@ import numpy as np
 
 import qbm
 from qbm.losses import FreeEnergy, MarginalNLL
-from qbm.operators import ParamHamiltonian, local_pauli_generators
+from qbm.operators import ParamHamiltonian, pauli_pool
 
 
 def _fd_grad(loss, ham, theta, eps=1e-6):
@@ -53,7 +53,7 @@ def test_marginal_nll_equals_relative_entropy_for_commuting_model():
 def test_free_energy_gradient_finite_diff():
     rng = np.random.default_rng(2)
     n = 3
-    ham = ParamHamiltonian(local_pauli_generators(n))
+    ham = ParamHamiltonian(pauli_pool(n, terms=("Z", "X", "ZZ"), connectivity="chain"))
     theta = rng.normal(scale=0.4, size=ham.n_params)
     H = qbm.hamiltonians.heisenberg(n)
     loss = FreeEnergy(H, temperature=0.8)

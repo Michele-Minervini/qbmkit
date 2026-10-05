@@ -21,7 +21,7 @@ def ground_state(
     reg: float = 1e-3,
     optimizer=None,
     backend=None,
-    connectivity: str = "chain",
+    connectivity="chain",
     init_scale: float = 0.05,
     seed: int = 0,
     compare_exact: bool = True,
@@ -37,6 +37,10 @@ def ground_state(
         Target Hamiltonian (dense Hermitian matrix).
     model : Model, optional
         Defaults to a :class:`~qbm.FullyVisibleQBM` of the right size.
+    connectivity : str or list of (int, int)
+        Coupling graph of that default model -- a name (``"chain"``, ``"ring"``,
+        ``"grid"``, ``"star"``, ``"all"``) or an explicit list of edges, as in
+        :func:`qbm.pauli_pool`.  Match it to the lattice of ``H``.
     compare_exact : bool
         If True (and the system is small) also report the exact ground energy.
 

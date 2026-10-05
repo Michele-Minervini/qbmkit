@@ -11,11 +11,7 @@ from qbm.operators import ParamHamiltonian  # noqa: E402
 
 def _chain(n):
     """1- and 2-body Pauli generators on an n-qubit chain."""
-    return (
-        [f"{'I' * i}Z{'I' * (n - i - 1)}" for i in range(n)]
-        + [f"{'I' * i}X{'I' * (n - i - 1)}" for i in range(n)]
-        + [f"{'I' * i}ZZ{'I' * (n - i - 2)}" for i in range(n - 1)]
-    )
+    return qbm.pauli_pool(n, terms=("Z", "X", "ZZ"), connectivity="chain")
 
 
 def _pair(n=4, seed=0, scale=0.4):

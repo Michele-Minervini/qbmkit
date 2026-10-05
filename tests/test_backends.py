@@ -4,12 +4,12 @@ import numpy as np
 
 import qbm
 from qbm import purification
-from qbm.operators import ParamHamiltonian, local_pauli_generators
+from qbm.operators import ParamHamiltonian, pauli_pool
 
 
 def _state(theta=None, n=3, seed=0, backend=None):
     rng = np.random.default_rng(seed)
-    ham = ParamHamiltonian(local_pauli_generators(n))
+    ham = ParamHamiltonian(pauli_pool(n, terms=("Z", "X", "ZZ"), connectivity="chain"))
     if theta is None:
         theta = rng.normal(scale=0.5, size=ham.n_params)
     b = qbm.get_backend(backend)
@@ -45,7 +45,7 @@ def test_entanglement_entropy_equals_thermal_entropy():
 # ---------------------------------------------------------------------------
 def test_statevector_matches_dense_exact():
     rng = np.random.default_rng(4)
-    ham = ParamHamiltonian(local_pauli_generators(3))
+    ham = ParamHamiltonian(pauli_pool(3, terms=("Z", "X", "ZZ"), connectivity="chain"))
     theta = rng.normal(scale=0.5, size=ham.n_params)
     dense = qbm.DenseBackend().thermal_state(ham, theta)
     sv = qbm.StatevectorBackend(shots=None).thermal_state(ham, theta)
@@ -71,7 +71,7 @@ def test_get_backend_and_registry():
 # shot noise
 # ---------------------------------------------------------------------------
 def test_shot_expectation_is_unbiased():
-    ham = ParamHamiltonian(local_pauli_generators(2))
+    ham = ParamHamiltonian(pauli_pool(2, terms=("Z", "X", "ZZ"), connectivity="chain"))
     theta = np.random.default_rng(5).normal(scale=0.5, size=ham.n_params)
     O = qbm.pauli("ZI")
     exact = qbm.DenseBackend().thermal_state(ham, theta).expect(O)

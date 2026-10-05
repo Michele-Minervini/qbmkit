@@ -13,7 +13,7 @@ import qbm
 from qbm.circuits import simulator
 from qbm.circuits import varqite as vq
 from qbm.circuits.adapters import to_qasm3
-from qbm.operators import ParamHamiltonian, local_pauli_generators, pauli
+from qbm.operators import ParamHamiltonian, pauli, pauli_pool
 
 TFIM_LABELS = ["ZZ", "XI", "IX"]
 TFIM_COEFFS = [-1.0, -0.8, -0.8]
@@ -224,7 +224,7 @@ def test_prepare_gibbs_matches_the_exact_gibbs_state_across_temperatures(beta):
 
 
 def test_prepare_gibbs_accepts_a_param_hamiltonian_and_matches_the_dense_backend():
-    ham = ParamHamiltonian(local_pauli_generators(3))
+    ham = ParamHamiltonian(pauli_pool(3, terms=("Z", "X", "ZZ"), connectivity="chain"))
     theta = np.random.default_rng(0).normal(scale=0.4, size=ham.n_params)
     res = vq.prepare_gibbs(ham, theta, beta=1.0, depth=3, steps=80)
     rho_dense = qbm.DenseBackend().thermal_state(ham, theta).density_matrix()
@@ -233,7 +233,7 @@ def test_prepare_gibbs_accepts_a_param_hamiltonian_and_matches_the_dense_backend
 
 
 def test_param_hamiltonian_requires_theta():
-    ham = ParamHamiltonian(local_pauli_generators(2))
+    ham = ParamHamiltonian(pauli_pool(2, terms=("Z", "X", "ZZ"), connectivity="chain"))
     with pytest.raises(ValueError, match="theta"):
         vq.prepare_gibbs(ham)
 
@@ -323,7 +323,7 @@ def test_long_imaginary_time_converges_to_the_ground_state():
 def test_circuit_backend_with_varqite_preparation_matches_dense():
     from qbm.backends.circuit import CircuitBackend
 
-    ham = ParamHamiltonian(local_pauli_generators(2))
+    ham = ParamHamiltonian(pauli_pool(2, terms=("Z", "X", "ZZ"), connectivity="chain"))
     theta = np.random.default_rng(0).normal(scale=0.4, size=ham.n_params)
     dense = qbm.DenseBackend().thermal_state(ham, theta)
     st = CircuitBackend(
@@ -340,7 +340,7 @@ def test_varqite_preparation_circuit_is_gate_level_unlike_exact_synthesis():
     """The point of VarQITE: a circuit a device can run, not an opaque state-prep unitary."""
     from qbm.backends.circuit import CircuitBackend
 
-    ham = ParamHamiltonian(local_pauli_generators(2))
+    ham = ParamHamiltonian(pauli_pool(2, terms=("Z", "X", "ZZ"), connectivity="chain"))
     theta = np.zeros(ham.n_params)
     var = CircuitBackend(gibbs_prep="varqite", varqite_options={"steps": 5}).thermal_state(
         ham, theta
@@ -357,7 +357,7 @@ def test_varqite_preparation_circuit_is_gate_level_unlike_exact_synthesis():
 def test_varqite_result_is_only_available_for_that_strategy():
     from qbm.backends.circuit import CircuitBackend
 
-    ham = ParamHamiltonian(local_pauli_generators(2))
+    ham = ParamHamiltonian(pauli_pool(2, terms=("Z", "X", "ZZ"), connectivity="chain"))
     st = CircuitBackend().thermal_state(ham, np.zeros(ham.n_params))
     with pytest.raises(ValueError, match="gibbs_prep='varqite'"):
         st.varqite_result()
@@ -366,7 +366,7 @@ def test_varqite_result_is_only_available_for_that_strategy():
 def test_resource_estimate_includes_the_preparation_cost():
     from qbm.backends.circuit import CircuitBackend
 
-    ham = ParamHamiltonian(local_pauli_generators(2))
+    ham = ParamHamiltonian(pauli_pool(2, terms=("Z", "X", "ZZ"), connectivity="chain"))
     st = CircuitBackend(
         shots=100, gibbs_prep="varqite", varqite_options={"depth": 1, "steps": 5}
     ).thermal_state(ham, np.zeros(ham.n_params))

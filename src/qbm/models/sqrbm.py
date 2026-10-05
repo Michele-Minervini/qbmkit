@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from ..operators import ParamHamiltonian
+from ..operators import ParamHamiltonian, rbm_generators
 
 
 class SqRBMState:
@@ -120,24 +120,8 @@ class SemiQuantumRBM:
         ``ham.matrix(model.theta)`` is exactly ``G(theta)``.  Only feasible for
         small ``n_visible + n_hidden``.
         """
-        nv, nh = self.n_visible, self.n_hidden
-        n = nv + nh
-
-        def lab(spec):
-            s = ["I"] * n
-            for q, o in spec.items():
-                s[q] = o
-            return "".join(s)
-
-        gens = [lab({i: "Z"}) for i in range(nv)]
-        for j in range(nh):
-            for P in self.hidden_paulis:
-                gens.append(lab({nv + j: P}))
-        for i in range(nv):
-            for j in range(nh):
-                for P in self.hidden_paulis:
-                    gens.append(lab({i: "Z", nv + j: P}))
-        return ParamHamiltonian(gens, n_qubits=n)
+        gens = rbm_generators(self.n_visible, self.n_hidden, hidden_paulis=self.hidden_paulis)
+        return ParamHamiltonian(gens, n_qubits=self.n_visible + self.n_hidden)
 
     def __repr__(self) -> str:
         return (

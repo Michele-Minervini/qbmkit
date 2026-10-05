@@ -12,7 +12,7 @@ import numpy as np
 import qbm
 from qbm.losses import MarginalRelativeEntropy
 
-_G = qbm.local_pauli_generators(3)
+_G = qbm.pauli_pool(3, terms=("Z", "X", "ZZ"), connectivity="chain")
 _HGEN = ["XII", "IXI", "IIX"]
 
 

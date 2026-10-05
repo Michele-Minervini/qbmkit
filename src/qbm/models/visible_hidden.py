@@ -1,4 +1,4 @@
-"""Visible + hidden QBM (restricted / semi-quantum Boltzmann machine).
+"""Visible + hidden QBM (restricted Boltzmann machine: classical, semi- or fully quantum).
 
 The joint Gibbs state ``rho_vh = e^{-G(theta)}/Z`` lives on visible + hidden
 qubits; the model distribution is the visible marginal ``p(v) = Tr_h rho_vh``
@@ -19,7 +19,24 @@ from .base import Model
 
 
 class VisibleHiddenQBM(Model):
-    """A restricted / semi-quantum QBM with ``n_visible`` visible and ``n_hidden`` hidden units."""
+    """A QBM with ``n_visible`` visible and ``n_hidden`` hidden units.
+
+    Parameters
+    ----------
+    n_visible, n_hidden : int
+        Register sizes; visible qubits are the leading tensor factors.
+    hidden_paulis, visible_paulis : sequence of str
+        Operators of the default restricted generator set, built by
+        :func:`~qbm.rbm_generators`.  The default (``Z`` on the visible units, ``Z`` and
+        ``X`` on the hidden ones) is the semi-quantum RBM; ``hidden_paulis=("Z",)`` is a
+        classical RBM, and a non-diagonal ``visible_paulis`` a fully quantum one.
+    generators : list of (str | ndarray), optional
+        Custom generator set, replacing the default altogether.
+    ham : ParamHamiltonian, optional
+        Provide a fully-built Hamiltonian directly.
+    theta, backend : optional
+        Initial parameters and engine, as for :class:`~qbm.FullyVisibleQBM`.
+    """
 
     def __init__(
         self,
@@ -30,12 +47,15 @@ class VisibleHiddenQBM(Model):
         ham=None,
         theta=None,
         backend=None,
+        visible_paulis=("Z",),
     ):
         self.n_visible = n_visible
         self.n_hidden = n_hidden
         if ham is None:
             if generators is None:
-                generators = rbm_generators(n_visible, n_hidden, hidden_paulis=hidden_paulis)
+                generators = rbm_generators(
+                    n_visible, n_hidden, visible_paulis=visible_paulis, hidden_paulis=hidden_paulis
+                )
             ham = ParamHamiltonian(generators, n_qubits=n_visible + n_hidden)
         super().__init__(ham, theta=theta, backend=backend)
 

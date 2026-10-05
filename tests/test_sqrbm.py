@@ -5,7 +5,7 @@ import numpy as np
 import qbm
 from qbm.linalg import partial_trace_hidden
 from qbm.losses import MarginalRelativeEntropy, RelativeEntropy, SqRBMNLL
-from qbm.operators import ParamHamiltonian, local_pauli_generators
+from qbm.operators import ParamHamiltonian, pauli_pool
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +93,7 @@ def test_marginal_relative_entropy_reduces_to_relative_entropy_fully_visible():
     # With no hidden units, MarginalRelativeEntropy must match RelativeEntropy.
     rng = np.random.default_rng(3)
     n = 3
-    ham = ParamHamiltonian(local_pauli_generators(n))
+    ham = ParamHamiltonian(pauli_pool(n, terms=("Z", "X", "ZZ"), connectivity="chain"))
     theta = rng.normal(scale=0.4, size=ham.n_params)
     sigma = qbm.oracles.gibbs(qbm.hamiltonians.tfim(n, g=1.1), beta=0.9)
     state = qbm.DenseBackend().thermal_state(ham, theta)

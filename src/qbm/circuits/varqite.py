@@ -59,7 +59,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from ..operators import local_pauli_generators
+from ..operators import pauli_pool
 from . import builder
 from .ir import Circuit
 from .simulator import measure_z
@@ -252,7 +252,7 @@ def tfd_ansatz(
     depth: int = 2,
     include_rotations: bool = True,
     mirror: bool = False,
-    connectivity: str = "all",
+    connectivity="all",
 ) -> PauliRotationAnsatz:
     """Build the TFD ansatz for a Hamiltonian.
 
@@ -280,9 +280,7 @@ def tfd_ansatz(
     if labels is None:
         if n is None:
             raise ValueError("give either the Hamiltonian's Pauli `labels` or the system size `n`")
-        labels = local_pauli_generators(
-            n, fields=("Z", "X", "Y"), couplings=("ZZ", "XX", "YY"), connectivity=connectivity
-        )
+        labels = pauli_pool(n, terms=("Z", "X", "Y", "ZZ", "XX", "YY"), connectivity=connectivity)
     labels = [s.upper() for s in labels]
     bad = [s for s in labels if set(s) - set("IXYZ")]
     if bad:

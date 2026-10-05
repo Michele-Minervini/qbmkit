@@ -18,12 +18,12 @@ import tracemalloc
 import numpy as np
 
 import qbm
-from qbm.operators import ParamHamiltonian, local_pauli_generators
+from qbm.operators import ParamHamiltonian, pauli_pool
 
 
 def measure(n: int, seed: int = 0) -> dict:
     """Time (seconds) and peak memory (MB) of the core operations at ``n`` qubits."""
-    ham = ParamHamiltonian(local_pauli_generators(n))
+    ham = ParamHamiltonian(pauli_pool(n, terms=("Z", "X", "ZZ"), connectivity="chain"))
     theta = np.random.default_rng(seed).normal(scale=0.4, size=ham.n_params)
     O = qbm.hamiltonians.tfim(n, g=1.0)
     backend = qbm.DenseBackend()

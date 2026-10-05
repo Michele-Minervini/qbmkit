@@ -14,7 +14,7 @@ import pytest
 import qbm
 from qbm import pauli_prop as pp
 from qbm.backends.pauli_propagation import PauliPropagationBackend
-from qbm.operators import ParamHamiltonian, local_pauli_generators, pauli
+from qbm.operators import ParamHamiltonian, pauli, pauli_pool
 
 RNG = np.random.default_rng(0)
 
@@ -102,7 +102,7 @@ def test_trotter_error_is_first_order_for_noncommuting_hamiltonians():
 
 
 def test_matches_dense_backend_at_high_depth():
-    ham = ParamHamiltonian(local_pauli_generators(3, connectivity="all"))
+    ham = ParamHamiltonian(pauli_pool(3, terms=("Z", "X", "ZZ")))
     theta = RNG.normal(scale=0.4, size=ham.n_params)
     dense = qbm.DenseBackend().thermal_state(ham, theta).density_matrix()
     ps = pp.thermal_state(ham.labels, theta, trotter_steps=256, coeff_cutoff=0.0)
@@ -110,7 +110,7 @@ def test_matches_dense_backend_at_high_depth():
 
 
 def test_truncation_error_decreases_as_the_cutoff_tightens():
-    ham = ParamHamiltonian(local_pauli_generators(4, connectivity="all"))
+    ham = ParamHamiltonian(pauli_pool(4, terms=("Z", "X", "ZZ")))
     theta = RNG.normal(scale=0.5, size=ham.n_params)
     dense = qbm.DenseBackend().thermal_state(ham, theta).density_matrix()
     errs, terms = [], []
@@ -131,7 +131,7 @@ def test_non_pauli_generators_are_refused():
 # read-outs and the sampler
 # ---------------------------------------------------------------------------
 def test_generator_expectations_match_dense():
-    ham = ParamHamiltonian(local_pauli_generators(3, connectivity="all"))
+    ham = ParamHamiltonian(pauli_pool(3, terms=("Z", "X", "ZZ")))
     theta = RNG.normal(scale=0.4, size=ham.n_params)
     dense = qbm.DenseBackend().thermal_state(ham, theta)
     ps = pp.thermal_state(ham.labels, theta, trotter_steps=256, coeff_cutoff=0.0)
@@ -140,7 +140,7 @@ def test_generator_expectations_match_dense():
 
 
 def test_probabilities_sum_to_one_and_match_the_diagonal():
-    ham = ParamHamiltonian(local_pauli_generators(3, connectivity="all"))
+    ham = ParamHamiltonian(pauli_pool(3, terms=("Z", "X", "ZZ")))
     theta = RNG.normal(scale=0.4, size=ham.n_params)
     ps = pp.thermal_state(ham.labels, theta, trotter_steps=128, coeff_cutoff=0.0)
     probs = ps.probabilities()
@@ -150,7 +150,7 @@ def test_probabilities_sum_to_one_and_match_the_diagonal():
 
 def test_sampler_reproduces_the_exact_diagonal_distribution():
     """Algorithm 1: the locally normalised sampler converges to the Born distribution."""
-    ham = ParamHamiltonian(local_pauli_generators(3, connectivity="all"))
+    ham = ParamHamiltonian(pauli_pool(3, terms=("Z", "X", "ZZ")))
     theta = RNG.normal(scale=0.5, size=ham.n_params)
     ps = pp.thermal_state(ham.labels, theta, trotter_steps=128, coeff_cutoff=0.0)
     exact = ps.probabilities()
@@ -161,7 +161,7 @@ def test_sampler_reproduces_the_exact_diagonal_distribution():
 
 def test_exact_pointwise_likelihood_is_consistent_with_the_sampler():
     """log_likelihood over all basis states must give a normalised distribution."""
-    ham = ParamHamiltonian(local_pauli_generators(3, connectivity="all"))
+    ham = ParamHamiltonian(pauli_pool(3, terms=("Z", "X", "ZZ")))
     theta = RNG.normal(scale=0.4, size=ham.n_params)
     ps = pp.thermal_state(ham.labels, theta, trotter_steps=128, coeff_cutoff=0.0)
     p = np.exp(ps.log_likelihood(np.arange(8)))
@@ -171,7 +171,7 @@ def test_exact_pointwise_likelihood_is_consistent_with_the_sampler():
 
 
 def test_spectral_negativity_is_zero_without_truncation_and_grows_with_it():
-    ham = ParamHamiltonian(local_pauli_generators(4, connectivity="all"))
+    ham = ParamHamiltonian(pauli_pool(4, terms=("Z", "X", "ZZ")))
     theta = RNG.normal(scale=0.6, size=ham.n_params)
     clean = pp.thermal_state(ham.labels, theta, trotter_steps=64, coeff_cutoff=0.0)
     truncated = pp.thermal_state(ham.labels, theta, trotter_steps=64, coeff_cutoff=1e-2)
@@ -190,7 +190,7 @@ def test_backend_is_registered_and_needs_no_sdk():
 
 
 def test_backend_matches_dense_on_measurable_quantities():
-    ham = ParamHamiltonian(local_pauli_generators(2, connectivity="all"))
+    ham = ParamHamiltonian(pauli_pool(2, terms=("Z", "X", "ZZ")))
     theta = RNG.normal(scale=0.4, size=ham.n_params)
     dense = qbm.DenseBackend().thermal_state(ham, theta)
     st = PauliPropagationBackend(trotter_steps=256, coeff_cutoff=0.0).thermal_state(ham, theta)
@@ -201,7 +201,7 @@ def test_backend_matches_dense_on_measurable_quantities():
 
 
 def test_backend_refuses_spectrum_and_channel_quantities():
-    ham = ParamHamiltonian(local_pauli_generators(2))
+    ham = ParamHamiltonian(pauli_pool(2, terms=("Z", "X", "ZZ"), connectivity="chain"))
     st = PauliPropagationBackend().thermal_state(ham, np.zeros(ham.n_params))
     for call in (
         lambda: st.metric(),
@@ -249,7 +249,7 @@ def test_trained_model_samples_reproduce_the_target():
 
 
 def test_resource_estimate_reports_the_term_count():
-    ham = ParamHamiltonian(local_pauli_generators(3, connectivity="all"))
+    ham = ParamHamiltonian(pauli_pool(3, terms=("Z", "X", "ZZ")))
     theta = RNG.normal(scale=0.4, size=ham.n_params)
     est = PauliPropagationBackend(trotter_steps=16).thermal_state(ham, theta).resource_estimate()
     assert est["retained_pauli_terms"] > 0

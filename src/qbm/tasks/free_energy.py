@@ -22,7 +22,7 @@ def free_energy_min(
     reg: float = 1e-4,
     optimizer=None,
     backend=None,
-    connectivity: str = "chain",
+    connectivity="chain",
     init_scale: float = 0.05,
     seed: int = 0,
     compare_exact: bool = True,

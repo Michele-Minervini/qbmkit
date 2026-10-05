@@ -128,7 +128,7 @@ def test_solution_is_a_valid_density_matrix():
 def test_offset_does_not_break_gradients():
     # ParamHamiltonian.offset must leave dG/dtheta_j (and hence every gradient) intact.
     rng = np.random.default_rng(5)
-    gens = qbm.local_pauli_generators(3)
+    gens = qbm.pauli_pool(3, terms=("Z", "X", "ZZ"), connectivity="chain")
     off = _random_hermitian(8, rng)
     ham = qbm.ParamHamiltonian(gens, offset=off)
     theta = rng.normal(scale=0.3, size=ham.n_params)

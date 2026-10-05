@@ -14,7 +14,7 @@ from hypothesis import strategies as st  # noqa: E402
 
 import qbm  # noqa: E402
 from qbm import purification  # noqa: E402
-from qbm.operators import ParamHamiltonian, local_pauli_generators  # noqa: E402
+from qbm.operators import ParamHamiltonian, pauli_pool  # noqa: E402
 
 _SETTINGS = settings(max_examples=60, deadline=None)
 
@@ -24,7 +24,7 @@ def gibbs_states(draw):
     n = draw(st.integers(min_value=2, max_value=3))
     seed = draw(st.integers(min_value=0, max_value=10_000))
     scale = draw(st.floats(min_value=0.05, max_value=1.5))
-    ham = ParamHamiltonian(local_pauli_generators(n))
+    ham = ParamHamiltonian(pauli_pool(n, terms=("Z", "X", "ZZ"), connectivity="chain"))
     theta = np.random.default_rng(seed).normal(scale=scale, size=ham.n_params)
     return ham, theta
 
