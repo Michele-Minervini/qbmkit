@@ -40,7 +40,9 @@ def ground_state(
     connectivity : str or list of (int, int)
         Coupling graph of that default model -- a name (``"chain"``, ``"ring"``,
         ``"grid"``, ``"star"``, ``"all"``) or an explicit list of edges, as in
-        :func:`qbm.pauli_pool`.  Match it to the lattice of ``H``.
+        :func:`qbm.pauli_pool`.  Match it to the lattice of ``H``.  For a rectangular
+        grid or a torus pass ``model=qbm.FullyVisibleQBM(n, connectivity="grid",
+        shape=(rows, cols), periodic=...)`` instead.
     compare_exact : bool
         If True (and the system is small) also report the exact ground energy.
 

@@ -63,7 +63,8 @@ def _grid_shape(n: int, shape) -> tuple[int, int]:
         if side * side != n:
             raise ValueError(
                 f"connectivity='grid' on {n} qubits needs shape=(rows, cols) with "
-                f"rows * cols == {n}; only a square lattice can be inferred"
+                f"rows * cols == {n}; only a square lattice can be inferred. Pass shape "
+                "to pauli_pool or FullyVisibleQBM, or give the edges explicitly"
             )
         return side, side
     try:

@@ -113,7 +113,7 @@ incurs for non-commuting hidden operators [@demidik2025sample].
 
 # Verification
 
-Correctness is treated as a feature. The suite of 407 tests is layered: exact analytic
+Correctness is treated as a feature. The suite of 408 tests is layered: exact analytic
 oracles, finite differences, JAX autodifferentiation agreeing with the analytic engine to
 $\sim10^{-15}$, cross-backend agreement, strong duality against an independent
 semidefinite-program solver, property-based tests, and four reproductions of published

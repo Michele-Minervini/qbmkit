@@ -295,6 +295,18 @@ def test_matching_the_lattice_of_the_target_matters():
     assert qbm.ground_state(H, steps=50, connectivity="ring").model.n_params == 12
 
 
+def test_a_rectangular_grid_reaches_the_facade_through_the_model():
+    target = qbm.FullyVisibleQBM(6, terms=("Z", "ZZ"), connectivity="grid", shape=(2, 3))
+    target.theta = np.random.default_rng(1).normal(scale=0.6, size=target.n_params)
+    data = target.probabilities()
+    with pytest.raises(ValueError, match="shape"):  # six sites: 2 x 3 or 3 x 2?
+        qbm.learn(data, connectivity="grid")
+    model = qbm.FullyVisibleQBM(6, connectivity="grid", shape=(2, 3))
+    assert model.n_params == 6 + 6 + 7
+    qbm.learn(data, steps=300, model=model)
+    assert model.history.monitor[-1] < 1e-6
+
+
 def test_free_energy_task_accepts_an_edge_list():
     H = qbm.hamiltonians.tfim(3, g=1.0, periodic=True)
     res = qbm.free_energy_min(H, steps=200, connectivity=[(0, 1), (1, 2), (2, 0)])

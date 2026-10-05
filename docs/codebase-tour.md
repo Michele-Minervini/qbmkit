@@ -1,6 +1,6 @@
 # A guided tour of the qbmkit codebase
 
-A structured, 24-week reading path through all 6,940 lines of `src/qbm`, in dependency
+A structured, 24-week reading path through all 6,947 lines of `src/qbm`, in dependency
 order: nothing is read before the thing it rests on. It exists so that a maintainer — or
 a contributor who wants real ownership of a subsystem — can work through the library
 deliberately rather than by grep.
@@ -28,7 +28,7 @@ would write differently; that list is your future contribution backlog.
 
 Everything else is a recombination of this phase. Do not skip ahead.
 
-### Week 1 — The object: `operators.py` (440)
+### Week 1 — The object: `operators.py` (441)
 **Claim.** A QBM model is nothing but a list of Hermitian generators plus which
 coefficients are free: `G(θ) = Σⱼ θⱼ Gⱼ`. And every standard list is described the same
 way: *which Pauli words*, placed on *which coupling graph*.
@@ -173,7 +173,7 @@ reach, and the (θ,φ) QFI is block-structured. (arXiv:2501.03367 — your own p
 **Questions.** Why does `∂exp(-iH)` need the Daleckii–Krein kernel rather than a naive
 product rule?
 
-### Week 11 — The public surface: `tasks/` (395) + `facade.py` (133) + `registry.py` (140)
+### Week 11 — The public surface: `tasks/` (397) + `facade.py` (137) + `registry.py` (140)
 **Claim.** Every research question is one call, and every default is overridable.
 
 **Questions.** How does the registry avoid importing JAX at `import qbm` time — and which

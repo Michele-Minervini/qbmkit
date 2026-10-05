@@ -101,7 +101,7 @@ For development, in a virtual environment:
 git clone https://github.com/Michele-Minervini/qbmkit && cd qbmkit
 python3 -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"          # + pytest, ruff, matplotlib, nbclient
-pytest                           # 407 tests
+pytest                           # 408 tests
 ```
 
 > Notes
@@ -428,7 +428,7 @@ energy / marginal-NLL / sqRBM-NLL / free-energy / quantum-target-relative-entrop
 SDP-dual losses, plus autodiff of arbitrary density-matrix objectives; GD / Adam /
 quantum natural gradient; **arbitrary QFI metrics** (the α-z family plus user kernels,
 with Kubo–Mori / Fisher–Bures / Wigner–Yanase as special cases);
-barren-plateau diagnostics. **407 tests** across seven tiers — exact oracles, finite
+barren-plateau diagnostics. **408 tests** across seven tiers — exact oracles, finite
 differences, autodiff (~1e-15), cross-backend agreement, strong duality/KKT with an
 independent reference SDP solver, **four paper reproductions**
 ([`tests/reproductions/`](tests/reproductions)), Hypothesis property-based tests, and

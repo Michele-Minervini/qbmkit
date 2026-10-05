@@ -87,6 +87,10 @@ def learn(
         of edges.  ``"all"`` (all-to-all) is the strong default for generic targets;
         use a sparser graph when the data has that structure.
     optimizer, model : optional overrides.
+        ``model`` is also how to choose what ``connectivity`` alone cannot express -- a
+        rectangular grid, a torus, other operators -- e.g.
+        ``model=qbm.FullyVisibleQBM(6, connectivity="grid", shape=(2, 3))``.  A model
+        you pass is trained from the parameters it has.
     monitor : {"auto"} | callable | None
         Recorded into ``model.history.monitor`` each step.  ``"auto"`` tracks the
         measured KL divergence ``D(q || p_model)`` -- the training curve that stays
