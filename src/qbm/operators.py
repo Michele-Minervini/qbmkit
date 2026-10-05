@@ -39,8 +39,9 @@ def _coupling_pairs(n: int, connectivity: str, periodic: bool):
             yield i, (i + 1) % n
     else:
         raise ValueError(f"unknown connectivity {connectivity!r}; use 'chain' or 'all'")
+    # TODO: introduce other connectivity topologies
 
-
+# Q: why define this function "local_pauli_generators" when there is already the function "pauli_pool" that does the same thing? Why define this function with only Z and X fields and ZZ couplings when the other, more general function can recover it?
 def local_pauli_generators(
     n: int,
     fields=("Z", "X"),
@@ -91,7 +92,7 @@ def pauli_pool(n: int, locality: int = 2, paulis=("X", "Y", "Z")) -> list[str]:
                 gens.append("".join(lbl))
     return gens
 
-
+# Q: why defining only the semi quantum restricted Boltzmann machine?? why not a general restricted Boltzmann machine with anu kind of visible and hidden operator?
 def rbm_generators(n_visible: int, n_hidden: int, hidden_paulis=("Z", "X")) -> list[str]:
     """Generator set for a (semi-quantum) restricted Boltzmann machine.
 
