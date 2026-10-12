@@ -8,6 +8,8 @@ References: arXiv:2602.04878 (thermal-state Pauli propagation) and *Sampling fro
 Quantum States via Pauli Propagation* (the QBM-training application).
 """
 
+import math
+
 import numpy as np
 import pytest
 
@@ -177,6 +179,108 @@ def test_spectral_negativity_is_zero_without_truncation_and_grows_with_it():
     truncated = pp.thermal_state(ham.labels, theta, trotter_steps=64, coeff_cutoff=1e-2)
     assert clean.spectral_negativity() < 1e-9
     assert truncated.spectral_negativity() >= clean.spectral_negativity()
+
+
+# ---------------------------------------------------------------------------
+# truncation acts after every gate
+# ---------------------------------------------------------------------------
+def _n_paulis_up_to_weight(n, weight):
+    return sum(math.comb(n, k) * 3**k for k in range(weight + 1))
+
+
+def _chain(n, seed=0, scale=0.3):
+    labels = pauli_pool(n, terms=("Z", "X", "ZZ"), connectivity="chain")
+    return labels, np.random.default_rng(seed).normal(scale=scale, size=len(labels))
+
+
+def test_the_gate_never_creates_a_string_above_the_weight_cap():
+    start = {pp.label_to_xz("II"): 1.0, pp.label_to_xz("ZI"): 0.5}
+    capped, free = dict(start), dict(start)
+    pp._apply_ite_gate(capped, pp.label_to_xz("IZ"), 0.3, max_weight=1)
+    pp._apply_ite_gate(free, pp.label_to_xz("IZ"), 0.3)
+    labels = lambda coeffs: {pp.xz_to_label(x, z, 2) for x, z in coeffs}  # noqa: E731
+    assert labels(free) == {"II", "ZI", "IZ", "ZZ"}  # ZI commutes with IZ and spawns ZZ
+    assert labels(capped) == {"II", "ZI", "IZ"}  # ... which the cap never lets exist
+    for key in capped:  # everything that does exist is treated exactly as without a cap
+        assert capped[key] == free[key]
+
+
+def test_the_working_set_is_bounded_like_the_result():
+    # Truncating once per Trotter layer let the sum grow through every gate in between:
+    # on this chain it peaked at 15,760 strings in order to return 321.  Per gate, the
+    # weight cap holds at every moment, so the peak obeys the same bound as the result.
+    n, cap = 8, 3
+    labels, theta = _chain(n)
+    ps = pp.thermal_state(labels, theta, trotter_steps=8, coeff_cutoff=1e-3, max_weight=cap)
+    assert all(pp.pauli_weight(key) <= cap for key in ps.coeffs)
+    assert ps.n_terms <= ps.peak_terms <= _n_paulis_up_to_weight(n, cap)  # 1,789
+    assert ps.peak_terms < 2 * ps.n_terms  # measured 1.3
+
+
+@pytest.mark.parametrize("n", [12, 16, 20])
+def test_cost_follows_the_retained_terms_beyond_the_dense_ceiling(n):
+    # sizes that used not to finish: the 10-qubit version of this state took 18 s and
+    # held 184k strings; a dense generator at 20 qubits would be 16 TiB
+    labels, theta = _chain(n)
+    ps = pp.thermal_state(labels, theta, trotter_steps=8, coeff_cutoff=1e-3, max_weight=3)
+    assert ps.peak_terms < 2 * ps.n_terms
+    assert ps.n_terms < 150 * n  # grows with the system, not with 4^n (measured ~105 n)
+    assert np.isclose(ps.coeffs[(0, 0)] * 2**n, 1.0)  # unit trace
+    weights = np.array([pp.pauli_weight(key) for key in ps.coeffs])
+    assert weights.max() == 3
+
+
+def test_accuracy_on_a_classical_chain_past_the_dense_ceiling():
+    # 16 spins, where the exact moments are still a sum over 2^16 configurations.  A
+    # commuting Hamiltonian has no Trotter error, so one layer isolates the truncation.
+    n = 16
+    rng = np.random.default_rng(0)
+    h, J = rng.normal(scale=0.5, size=n), rng.normal(scale=0.5, size=n - 1)
+    v = np.arange(2**n)
+    spins = 1 - 2 * ((v[:, None] >> np.arange(n - 1, -1, -1)) & 1)
+    energy = spins @ h + (spins[:, :-1] * spins[:, 1:]) @ J
+    q = np.exp(-(energy - energy.min()))
+    q /= q.sum()
+    exact = np.r_[spins.T @ q, (spins[:, :-1] * spins[:, 1:]).T @ q]  # <Z_i>, <Z_i Z_i+1>
+
+    labels = pauli_pool(n, terms=("Z", "ZZ"), connectivity="chain")
+    errors = []
+    for cutoff in (1e-3, 1e-4):
+        ps = pp.thermal_state(labels, np.r_[h, J], trotter_steps=1, coeff_cutoff=cutoff)
+        got = np.array([ps.expect_pauli(lbl) for lbl in labels])
+        errors.append(np.max(np.abs(got - exact)))
+        assert ps.peak_terms < 2 * ps.n_terms
+    assert errors[0] < 5e-3 and errors[1] < 5e-4  # measured 1.2e-3 and 1.0e-4
+    assert errors[1] < errors[0]
+
+
+def test_a_cutoff_above_the_entry_size_leaves_the_identity():
+    # a gate brings in its string at tanh(|theta_k| / L) relative to the identity; a
+    # cutoff above the largest of those lets nothing in, however many layers follow
+    labels, theta = _chain(4, seed=3, scale=0.5)
+    layers = 16
+    entry = np.tanh(np.abs(theta).max() / layers)
+    stuck = pp.thermal_state(labels, theta, trotter_steps=layers, coeff_cutoff=1.01 * entry)
+    assert stuck.n_terms == 1 and stuck.peak_terms == 2  # one candidate at a time, refused
+    moving = pp.thermal_state(labels, theta, trotter_steps=layers, coeff_cutoff=0.5 * entry)
+    assert moving.n_terms > 1
+
+
+def test_the_default_cutoff_is_as_good_as_none():
+    labels, theta = _chain(4, seed=1, scale=0.5)
+    default = pp.thermal_state(labels, theta, trotter_steps=32)
+    untruncated = pp.thermal_state(labels, theta, trotter_steps=32, coeff_cutoff=0.0)
+    assert _trace_distance(default.to_matrix(), untruncated.to_matrix()) < 1e-8
+
+
+def test_peak_terms_is_reported_and_survives_a_copy():
+    labels, theta = _chain(5)
+    ham = ParamHamiltonian(labels)
+    state = PauliPropagationBackend(trotter_steps=8, coeff_cutoff=1e-3).thermal_state(ham, theta)
+    estimate = state.resource_estimate()
+    assert estimate["peak_pauli_terms"] == state.peak_terms >= estimate["retained_pauli_terms"]
+    assert state.pauli_sum().copy().peak_terms == state.peak_terms
+    assert pp.PauliSum(3).peak_terms is None  # not built by propagation
 
 
 # ---------------------------------------------------------------------------

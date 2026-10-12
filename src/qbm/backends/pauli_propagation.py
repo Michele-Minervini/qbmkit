@@ -76,6 +76,11 @@ class PauliPropThermalState:
         """Number of Pauli strings retained -- the cost knob of the method."""
         return self.pauli_sum().n_terms
 
+    @property
+    def peak_terms(self) -> int:
+        """Most Pauli strings held at any moment of the propagation (the working set)."""
+        return self.pauli_sum().peak_terms
+
     # -- measurable read-outs --------------------------------------------
     def expect(self, op) -> float:
         return self.pauli_sum().expect(op)
@@ -109,6 +114,7 @@ class PauliPropThermalState:
             "n_parameters": self.ham.n_params,
             "trotter_steps": self.trotter_steps,
             "retained_pauli_terms": ps.n_terms,
+            "peak_pauli_terms": ps.peak_terms,
             "coeff_cutoff": self.coeff_cutoff,
             "max_weight": None if self.max_weight == np.inf else self.max_weight,
         }
@@ -162,9 +168,11 @@ class PauliPropagationBackend:
         Imaginary-time layers ``L``.  Error is first order in ``1/L`` and zero for
         commuting Hamiltonians.
     coeff_cutoff : float
-        Small-coefficient truncation threshold (relative to ``c_I``).
+        Small-coefficient truncation threshold (relative to ``c_I``), applied after every
+        gate.  Keep it well below ``|theta_k| / trotter_steps``, the relative size at
+        which a gate brings in a new string.
     max_weight : int
-        Pauli-weight truncation cap.
+        Pauli-weight truncation cap, applied after every gate.
     seed : int, optional
         Seed for the sampler's random generator.
     """

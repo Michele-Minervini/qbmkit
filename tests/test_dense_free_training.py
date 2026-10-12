@@ -201,6 +201,29 @@ def test_training_past_the_dense_ceiling():
     assert np.all(np.isnan(history.loss))  # nor log Z
 
 
+def test_pauli_propagation_trains_past_the_dense_ceiling():
+    # The loss stopped being the obstacle before the engine did: with truncation once
+    # per Trotter layer a single 16-qubit state did not finish.  Per gate, it trains.
+    n = 16
+    v = np.arange(2**n)
+    spins = 1 - 2 * ((v[:, None] >> np.arange(n - 1, -1, -1)) & 1)
+    rng = np.random.default_rng(0)
+    energy = spins @ rng.normal(scale=0.5, size=n)
+    energy += (spins[:, :-1] * spins[:, 1:]) @ rng.normal(scale=0.5, size=n - 1)
+    q = np.exp(-(energy - energy.min()))
+    q /= q.sum()
+
+    backend = qbm.get_backend("pauli_propagation", trotter_steps=8, coeff_cutoff=1e-3)
+    model = qbm.learn(
+        q, steps=4, backend=backend, connectivity="chain", monitor=lambda s, m: s.peak_terms
+    )
+    assert model.ham._mats is None
+    history = model.history
+    assert history.grad_norm[-1] < history.grad_norm[0]
+    # the working set stays small: 7,265 strings here, against 4^16 = 4.3e9 in the operator
+    assert max(history.monitor) < 10**5
+
+
 # ---------------------------------------------------------------------------
 # the KL monitor
 # ---------------------------------------------------------------------------

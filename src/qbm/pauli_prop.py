@@ -24,8 +24,12 @@ denser.  We fold the factor of two into the step angle, so the code uses ``cosh(
 
 **Truncation.**  The sum is kept sparse by discarding terms whose coefficient falls below
 ``coeff_cutoff`` (relative to the identity coefficient) or whose Pauli weight exceeds
-``max_weight``.  This is exact for commuting (classical) Hamiltonians and controlled by
-the truncation for the rest; the error is analysed in arXiv:2602.04878.
+``max_weight``.  Both act **after every gate**: a gate can at most double the number of
+terms, so the sum held in memory never exceeds twice what the truncation lets through,
+and the cost of a run is set by the terms it retains.  (Truncating only once per Trotter
+layer would let the sum grow by a factor of up to ``2^J`` over the ``J`` gates in
+between.)  The propagation is exact for commuting (classical) Hamiltonians and controlled
+by the truncation for the rest; the error is analysed in arXiv:2602.04878.
 
 **Sampling.**  Truncation can push ``rho`` outside the positive-semidefinite cone, so its
 computational-basis "probabilities" may go slightly negative and standard sampling is
@@ -121,9 +125,12 @@ class PauliSum:
     :meth:`sample`, and :meth:`to_matrix`.
     """
 
-    def __init__(self, n_qubits: int, coeffs: dict | None = None):
+    def __init__(self, n_qubits: int, coeffs: dict | None = None, peak_terms: int | None = None):
         self.n_qubits = n_qubits
         self.coeffs: dict[tuple[int, int], float] = coeffs if coeffs is not None else {}
+        #: most terms held at any moment of the propagation that built this sum -- the
+        #: working set, which is what the run cost (``None`` if not built by propagation)
+        self.peak_terms = peak_terms
 
     # -- basics -----------------------------------------------------------
     def __len__(self) -> int:
@@ -137,7 +144,7 @@ class PauliSum:
         return self.coeffs.get(key, 0.0)
 
     def copy(self) -> PauliSum:
-        return PauliSum(self.n_qubits, dict(self.coeffs))
+        return PauliSum(self.n_qubits, dict(self.coeffs), self.peak_terms)
 
     # -- read-outs --------------------------------------------------------
     def expect_pauli(self, label: str) -> float:
@@ -286,36 +293,39 @@ def _popcount_array(a: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # imaginary-time propagation
 # ---------------------------------------------------------------------------
-def _apply_ite_gate(coeffs, gen, theta):
+def _apply_ite_gate(coeffs, gen, theta, max_weight=np.inf):
     """One imaginary-time gate ``e^{-theta G}(.)e^{-theta G}`` applied in place to ``coeffs``.
 
     Commuting terms ``P`` are scaled by ``cosh(theta)`` and spawn ``-sinh(theta) P G``;
     anticommuting terms are invariant.  ``gen`` is the generator's ``(x, z)`` mask.
+
+    A spawned string heavier than ``max_weight`` is never created.  That is the weight
+    truncation, applied where the term would be born: every string already in the sum
+    respects the cap, so nothing else needs checking.
     """
     ch, sh = np.cosh(theta), np.sinh(theta)
+    capped = max_weight < np.inf
     additions: dict[tuple[int, int], float] = {}
     for key, c in list(coeffs.items()):
         if not commutes(key, gen):
             continue  # anticommuting Pauli strings pass through unchanged
         coeffs[key] = c * ch
         rx, rz, phase = pauli_product(key, gen)
+        if capped and _popcount(rx | rz) > max_weight:
+            continue
         additions[(rx, rz)] = additions.get((rx, rz), 0.0) - sh * float(np.real(phase)) * c
     for key, v in additions.items():
         coeffs[key] = coeffs.get(key, 0.0) + v
 
 
-def _truncate(coeffs, coeff_cutoff, max_weight):
-    """Drop terms below ``coeff_cutoff`` (relative to ``c_I``) or above ``max_weight``.
+def _truncate(coeffs, coeff_cutoff):
+    """Drop terms whose coefficient is at most ``coeff_cutoff`` times ``|c_I|``.
 
     The identity term is always kept: it carries the trace and the normalisation.
     """
-    cI = abs(coeffs.get((0, 0), 1.0))
-    thr = coeff_cutoff * cI
-    for key in list(coeffs.keys()):
-        if key == (0, 0):
-            continue
-        if abs(coeffs[key]) <= thr or pauli_weight(key) > max_weight:
-            del coeffs[key]
+    threshold = coeff_cutoff * abs(coeffs.get((0, 0), 1.0))
+    for key in [k for k, c in coeffs.items() if abs(c) <= threshold and k != (0, 0)]:
+        del coeffs[key]
 
 
 def thermal_state(
@@ -340,10 +350,19 @@ def thermal_state(
         Number ``L`` of imaginary-time layers.  The Trotter error is first order in
         ``1/L`` and vanishes exactly for commuting Hamiltonians.
     coeff_cutoff : float
-        Discard Pauli terms whose coefficient is below this fraction of ``c_I`` after each
-        layer (the "small-coefficient" truncation).
+        Discard Pauli terms whose coefficient is below this fraction of ``c_I``, after
+        every gate (the "small-coefficient" truncation).  A gate brings in new strings
+        at a relative size of about ``|beta h_k| / L``, so the cutoff has to sit well
+        below that: above it nothing survives and the state stays maximally mixed.
     max_weight : float
-        Discard Pauli strings acting on more than this many qubits (weight truncation).
+        Discard Pauli strings acting on more than this many qubits (weight truncation),
+        also after every gate.
+
+    Returns
+    -------
+    PauliSum
+        Normalised to unit trace.  Its ``peak_terms`` is the largest number of terms held
+        at any moment, at most twice the number that survived the preceding truncation.
     """
     labels = [s.upper() for s in labels]
     bad = [s for s in labels if set(s) - set("IXYZ")]
@@ -360,18 +379,20 @@ def thermal_state(
 
     gens = [(label_to_xz(lbl), float(h)) for lbl, h in zip(labels, np.asarray(coeffs, float))]
     state = {(0, 0): 1.0}  # start from the identity operator (infinite temperature)
+    peak = 1
     for _ in range(trotter_steps):
         for gen, h in gens:
             if h == 0.0:
                 continue
-            _apply_ite_gate(state, gen, beta * h / trotter_steps)
-        _truncate(state, coeff_cutoff, max_weight)
+            _apply_ite_gate(state, gen, beta * h / trotter_steps, max_weight)
+            peak = max(peak, len(state))
+            _truncate(state, coeff_cutoff)
 
     cI = state.get((0, 0), 0.0)
     if cI == 0.0:
         raise FloatingPointError("identity coefficient vanished; check the Hamiltonian scale")
     scale = 1.0 / (cI * 2**n)  # normalise c_I = 1, then trace-normalise (rho = 2^-n I + ...)
-    return PauliSum(n, {k: v * scale for k, v in state.items()})
+    return PauliSum(n, {k: v * scale for k, v in state.items()}, peak_terms=peak)
 
 
 __all__ = [
