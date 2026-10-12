@@ -104,9 +104,9 @@ def learn(
     -----
     Nothing here is larger than the ``2^n`` probability vector: the target enters the
     loss through its moments ``<G_j>_data``, read from the Pauli labels.  A backend that
-    also works from labels is then limited only by its own cost -- on
-    ``"tensor_network"`` this trains a 20-qubit chain, well past the ~13-qubit ceiling
-    of a dense density matrix.
+    also works from labels is then limited only by its own cost -- ``"tensor_network"``
+    trains a 20-qubit chain this way and ``"pauli_propagation"`` a 16-qubit one, well
+    past the ~13-qubit ceiling of a dense density matrix.
 
     Returns
     -------

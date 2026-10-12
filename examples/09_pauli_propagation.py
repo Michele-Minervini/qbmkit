@@ -5,8 +5,13 @@ time (arXiv:2602.04878); a QBM is trained for generative modelling with the loca
 normalised sampler (*Sampling from Thermal Quantum States via Pauli Propagation*).
 Everything runs in the Pauli basis, through the unchanged qbm.learn API.  See notebook 13.
 
+The last part goes past the dense ceiling: truncation acts after every gate, so the cost
+follows the strings that are kept, and a 16-qubit model trains (about two and a half minutes).
+
 Run:  python examples/09_pauli_propagation.py
 """
+
+import time
 
 import numpy as np
 
@@ -70,3 +75,52 @@ print(f"   Pauli propagation  KL -> {model.history.monitor[-1]:.2e}")
 print(f"   dense reference    KL -> {ref.history.monitor[-1]:.2e}  (curves coincide)")
 print("   loss value needs log Z (refused) -> nan; training rides the gradient")
 print(f"   TVD(model samples, target) = {0.5 * np.sum(np.abs(emp - q)):.3e}")
+
+# --- 5. past the dense ceiling ------------------------------------------------
+# Truncation is applied after every gate, so the sum never holds much more than it
+# returns ("peak" below) and the cost grows with the system rather than with 4^n.
+print("\npast the dense ceiling (chain, coeff_cutoff=1e-3, max_weight=3):")
+for n in (12, 16, 20):
+    ham = qbm.ParamHamiltonian(qbm.pauli_pool(n, terms=("Z", "X", "ZZ"), connectivity="chain"))
+    theta = np.random.default_rng(0).normal(scale=0.3, size=ham.n_params)
+    t0 = time.perf_counter()
+    st = PauliPropagationBackend(trotter_steps=8, coeff_cutoff=1e-3, max_weight=3).thermal_state(
+        ham, theta
+    )
+    retained, peak = st.n_terms, st.peak_terms
+    dt = time.perf_counter() - t0
+    print(f"   n={n:2d}  {dt:5.2f}s  retained={retained:5d}  peak={peak:5d}")
+
+# And it trains there.  Same task as examples/06: the Boltzmann distribution of a random
+# 16-spin Ising chain, learned by a model on that chain.  The model contains the target,
+# so the couplings it recovers measure what the truncation costs.
+n = 16
+rng = np.random.default_rng(0)
+h, J = rng.normal(scale=0.5, size=n), rng.normal(scale=0.5, size=n - 1)
+v = np.arange(2**n)
+spins = 1 - 2 * ((v[:, None] >> np.arange(n - 1, -1, -1)) & 1)  # qubit 0 = leftmost bit
+energy = spins @ h + (spins[:, :-1] * spins[:, 1:]) @ J
+data = np.exp(-(energy - energy.min()))
+data /= data.sum()
+
+t0 = time.perf_counter()
+model = qbm.learn(
+    data,
+    steps=120,
+    backend=PauliPropagationBackend(trotter_steps=8, coeff_cutoff=1e-3, seed=0),
+    connectivity="chain",
+    monitor=lambda state, mdl: state.peak_terms,
+)
+dt = time.perf_counter() - t0
+theta_z, theta_x, theta_zz = model.theta[:n], model.theta[n : 2 * n], model.theta[2 * n :]
+history = model.history
+print(f"\ntraining at n={n} ({model.n_params} parameters, {len(history)} steps, {dt:.0f}s):")
+print(f"   moment mismatch |grad| : {history.grad_norm[0]:.3f} -> {history.grad_norm[-1]:.4f}")
+print(f"   max |theta_Z  - h|     : {np.max(np.abs(theta_z - h)):.4f}")
+print(f"   max |theta_ZZ - J|     : {np.max(np.abs(theta_zz - J)):.4f}")
+print(f"   max |theta_X|          : {np.max(np.abs(theta_x)):.4f}")
+print(f"   most strings ever held : {max(history.monitor):,}  (the full operator has 4^16)")
+print(f"   dense generators built : {model.ham._mats is not None}")
+print("   The cutoff sets that accuracy: 3e-4 brings the couplings to 0.015 at 2.6x the cost.")
+print("   For a 1-D problem like this one the tensor-network backend is the better tool")
+print("   (examples/06: about half the time, couplings to 1e-3).")

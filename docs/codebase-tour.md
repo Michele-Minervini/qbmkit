@@ -1,6 +1,6 @@
 # A guided tour of the qbmkit codebase
 
-A structured, 24-week reading path through all 6,947 lines of `src/qbm`, in dependency
+A structured, 24-week reading path through all 6,976 lines of `src/qbm`, in dependency
 order: nothing is read before the thing it rests on. It exists so that a maintainer — or
 a contributor who wants real ownership of a subsystem — can work through the library
 deliberately rather than by grep.
@@ -260,20 +260,26 @@ measurable when fidelity is not — and why does it cross 0.1 *before* the energ
 
 ## Phase 6 · Pauli propagation and closing (weeks 20–24)
 
-### Week 20 — `pauli_prop.py` part 1: algebra + ITE (lines 1–~250)
+### Week 20 — `pauli_prop.py` (406) part 1: the algebra and the imaginary-time evolution
 **Claim.** A Pauli string is a signed permutation `(x,z)`; the imaginary-time gate
 branches only on **commutation**, `P → cosh(2θ)P − sinh(2θ)PG`.
+
+**Read.** The symplectic helpers at the top (`label_to_xz` … `pauli_weight`), then the
+block at the bottom: `_apply_ite_gate`, `_truncate`, `thermal_state`.
 
 **Verification.** Re-derive the product phase `i^{eP+eQ-eR}(-1)^{⟨zP,xQ⟩}` and check it
 against dense matrices. Confirm the ITE is *exact* for a commuting Hamiltonian at L=1.
 
-**Questions.** `thermal_state` truncates once per Trotter *layer*, not after every gate.
-For a 10-qubit chain with `coeff_cutoff=1e-3, max_weight=3`, count the terms held inside
-a layer and compare with the number retained at its end. What does the ratio imply for
-the largest size this engine reaches, and what would truncating after every gate change —
-in cost, and in the result?
+**Questions.** `thermal_state` truncates after every *gate*, and reports the most terms it
+ever held as `peak_terms`. Why is that at most twice what the truncation lets through?
+Move the truncation to the end of each Trotter layer instead and measure `peak_terms`
+again on a 10-qubit chain with `coeff_cutoff=1e-3, max_weight=3` — what does the ratio to
+the retained terms imply for the largest size the engine could reach that way? Per-gate
+truncation is not free: at the same cutoff it keeps fewer strings and is less accurate.
+Explain why, starting from the size at which a gate brings a new string in,
+`tanh(|θ_k|/L)`, and say what must happen to the cutoff when you double `L`.
 
-### Week 21 — `pauli_prop.py` part 2: sampler (~250–385) + `backends/pauli_propagation.py` (201)
+### Week 21 — `pauli_prop.py` part 2: `PauliSum` and its sampler + `backends/pauli_propagation.py` (209)
 **Claim.** Truncation can push ρ out of the PSD cone; the locally normalised chain rule
 still yields a valid distribution, with exact pointwise likelihoods.
 
@@ -283,7 +289,7 @@ coefficient truncation more effective than weight truncation on dense Hamiltonia
 ### Week 22 — Adapters and periphery: `circuits/adapters/` (259) + `diagnostics.py` (68) + `data/` (135)
 **Questions.** If Qiskit 3.0 breaks tomorrow, exactly which files change?
 
-### Week 23 — The test suite: `tests/` (~3,900)
+### Week 23 — The test suite: `tests/` (~4,000)
 Read the tests as *specification*. For each of the seven tiers, find one test you could
 break with a plausible bug — and one you could not.
 

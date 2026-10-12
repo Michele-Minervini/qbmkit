@@ -429,8 +429,10 @@ an exact oracle, and the suite (100+ tests) gates every change across seven tier
   training path**: `RelativeEntropy` reads target moments from the Pauli labels and
   accepts a probability vector, so `qbm.learn` on the tensor-network backend trains a
   20-qubit model. `learn_state` with hidden units now uses a fully quantum RBM.
+  **Pauli propagation truncates after every gate**, as the reference implementation
+  does, so its cost follows the strings it retains and it runs past the dense ceiling.
 - **v0.14+ (next)** — Petz–Tsallis loss; metrology / Cramér–Rao module; a vectorised
-  Pauli-propagation kernel with per-gate truncation; a cross-backend benchmark; docs site.
+  Pauli-propagation kernel; a cross-backend benchmark; docs site.
 
 **Generator-set note (v0.13).** There used to be two builders for one register:
 `local_pauli_generators` (chosen fields and couplings on a chain or all pairs) and
@@ -470,10 +472,36 @@ target one Walsh–Hadamard transform of `q` yields every `Z`-string moment — 
 accepts `q` itself, and `value` asks for `log Z` first. The same transform replaced the
 `2^n x n_terms` table behind the Pauli-propagation `probabilities()`. A test replaces
 `ParamHamiltonian.generators` with a tripwire and trains through it. What remains is each
-backend's own cost: the tensor network trains at 20 qubits; the Pauli-propagation engine
-truncates once per Trotter layer rather than per gate, so its working set inside a layer
-is far larger than what it retains (184k terms against 727 on a 10-qubit chain), which
-holds it to about ten qubits until that is changed.
+backend's own cost, and the Pauli-propagation engine turned out to have a leak of its
+own there (next note).
+
+**Truncation note (v0.13).** The Pauli-propagation engine used to truncate once per
+Trotter *layer*. Between two truncations the sum then grew through every gate of the
+layer, so the working set bore no relation to the result: on a 10-qubit chain
+(`coeff_cutoff=1e-3`, `max_weight=3`) it held 184k strings in order to return 727, took
+18 s, and 12 qubits did not finish. That contradicted the claim the backend is built on —
+cost set by the retained strings — and it was a deviation from the reference
+`PauliSampling.jl`, whose `applymergetruncate_ite!` truncates after every gate. The engine
+now does the same: a string above the weight cap is never created, and coefficients below
+the cutoff are dropped after each gate. A gate can at most double the sum, so the peak
+is within a factor of two of what the truncation lets through (574 strings held to return
+457 on that chain, in 0.08 s; 20 qubits in half a second). `PauliSum.peak_terms` reports
+the working set so that this is checked, not assumed.
+
+Two consequences are worth knowing. First, per-gate truncation is harsher at the same
+nominal cutoff: contributions to a string that used to add up inside a layer before
+being judged are now judged one at a time. Where the cutoff sits well below the size at
+which a gate brings a string in, `tanh(|theta_k|/L)`, nothing changes to three digits
+(the truncation study of notebook 13 trains to KL 6.86e-3 at `1e-3` against 6.66e-3
+before, and the same to 0.2% at `1e-4` and below); near or above it, fewer strings survive —
+and since that size shrinks as `1/L`, the cutoff has to come down when the number of
+layers goes up. Second, a state truncated that hard is not positive, and its diagonal is
+not a distribution. The notebook used to read a KL off that diagonal after clipping it,
+which turned any negative entry into a number in the tens (the weight-truncation curve
+it showed, at 38, 33 and 4.8, was this artefact). It now scores a truncated model by the
+distribution it actually samples from, through the sampler's exact likelihoods, which is
+a divergence at any truncation level and coincides with the diagonal one whenever the
+state is positive.
 
 **Hidden-unit note (v0.12).** Before this, `MarginalNLL` was the only exact route and it
 needs `d_j rho` (`diagonal_gradient`), which capped hidden units at the dense ceiling —
