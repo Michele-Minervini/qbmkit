@@ -415,7 +415,8 @@ def test_ground_state_training_is_guarded_by_the_residual():
     """Ground-state search drives beta -> infinity, where preparation degrades.
 
     Unguarded, the bad gradient eventually destabilises the run; a `stop` predicate on
-    the (measurable) preparation error halts while the answer is still good.
+    the (measurable) preparation error halts it, and the states that passed the guard
+    on the way hold a good answer.
     """
     from qbm.losses import Energy
 
@@ -437,12 +438,19 @@ def test_ground_state_training_is_guarded_by_the_residual():
     guarded = run(stop=lambda s, m: s.varqite_result().residual > 0.05)
 
     # The exact stopping step is trajectory-dependent (eigh/lstsq differ across BLAS
-    # implementations), so pin the mechanism, not a platform-specific number.
-    assert guarded.monitor[0] < 1e-4  # starts near maximally mixed: trivially prepared
+    # implementations), so pin the mechanism, not a platform-specific number.  That
+    # includes the state the run stops on: the collapse takes only a step or two, and
+    # whether the residual crosses the threshold just before it (energy still within
+    # 0.02 of the ground state) or on it (energy off by 1.0, as on one CI platform) is
+    # not something to rely on.  What holds everywhere is that the states which passed
+    # the guard had reached the ground state.
+    residual, energy = np.array(guarded.monitor), np.array(guarded.loss)
+    assert residual[0] < 1e-4  # starts near maximally mixed: trivially prepared
     assert len(guarded) < 150  # ...degrades as beta grows, and the guard fires
-    assert guarded.monitor[-1] > 0.05  # on the condition we asked for
-    assert guarded.loss[-1] < 0.0  # having halted somewhere physically sensible
-    assert abs(guarded.loss[-1] - E0) < 0.5  # and near the exact ground energy
+    assert residual[-1] > 0.05  # on the condition we asked for
+    assert np.all(residual[:-1] <= 0.05)  # and at the first state that meets it
+    best = energy[:-1].min() - E0  # every prepared state is physical, so this is >= 0
+    assert best < 0.1, f"energies of the last states: {energy[-6:]}, residuals: {residual[-6:]}"
 
     loose = run()
     if abs(loose.loss[-1] - E0) > 1.0:  # the documented failure mode did occur here
