@@ -272,8 +272,10 @@ On classical generative targets that is indistinguishable from exact training (t
 flows to a commuting Hamiltonian, where the ansatz is exact) and it survives shot noise.
 Objectives that drive β → ∞, like ground-state search, degrade the preparation as they
 go; guard them on the same measurable residual —
-`qbm.fit(..., stop=lambda s, m: s.varqite_result().residual > 0.05)`. Worked through in
-[notebook 12](notebooks/12_training_a_qbm_with_varqite.ipynb).
+`qbm.fit(..., stop=lambda s, m: s.varqite_result().residual > 0.05)` — and keep the best
+state that passed the guard, not the last one: depending on floating-point details the
+guard fires a few steps before the run collapses or only once it has. Worked
+through in [notebook 12](notebooks/12_training_a_qbm_with_varqite.ipynb).
 
 Honest scope: expectations, generative gradients, sampling, the energy gradient and the
 information matrices are measurable. Entropy, `log Z`, free energy and the SDP dual

@@ -63,24 +63,46 @@ for shots in (None, 1000, 250):
 # preparation degrades -- eventually corrupting the gradient that drives it.
 H = qbm.hamiltonians.tfim(2, J=1.0, g=1.2)
 E0 = np.linalg.eigvalsh(H)[0]
+THRESHOLD = 0.05  # McLachlan residual above which the preparation is not trusted
 
 
 def ground_run(stop=None):
     m = qbm.FullyVisibleQBM(n=2, connectivity="all", backend=varqite_backend())
     m.theta = np.random.default_rng(0).normal(scale=0.05, size=m.n_params)
-    return qbm.fit(m, Energy(H), qbm.optim.Adam(lr=0.2), steps=150, stop=stop)
+    return qbm.fit(
+        m,
+        Energy(H),
+        qbm.optim.Adam(lr=0.2),
+        steps=150,
+        stop=stop,
+        monitor=lambda state, mdl: state.varqite_result().residual,
+    )
 
 
 loose = ground_run()
-guarded = ground_run(stop=lambda state, mdl: state.varqite_result().residual > 0.05)
+guarded = ground_run(stop=lambda state, mdl: state.varqite_result().residual > THRESHOLD)
+
+# The step that trips the guard is the first state whose preparation fails the check.
+# Depending on floating-point details it comes a few steps before the run collapses or
+# only once it has, so the answer is never simply the last state: it is the best state
+# that passed.
+energy, residual = np.array(guarded.loss), np.array(guarded.monitor)
+passed = np.flatnonzero(residual <= THRESHOLD)
+best = int(passed[np.argmin(energy[passed])])
+flagged = len(guarded) - 1
 
 print(f"\nground-state energy (exact {E0:.5f}):")
 print(
-    f"   unguarded, 150 steps   <H> = {loose.loss[-1]:+.5f}   "
+    f"   unguarded, 150 steps     <H> = {loose.loss[-1]:+.5f}   "
     f"error {abs(loose.loss[-1] - E0):.2e}   <-- destabilised"
 )
 print(
-    f"   residual-guarded       <H> = {guarded.loss[-1]:+.5f}   "
-    f"error {abs(guarded.loss[-1] - E0):.2e}   (stopped itself at step {len(guarded)})"
+    f"   guard fires at step {flagged:<3d}  <H> = {energy[-1]:+.5f}   "
+    f"(residual {residual[-1]:.3f}: the state it flags)"
 )
-print("   the preparation error is measurable, so the guard works on hardware too.")
+print(
+    f"   best state that passed   <H> = {energy[best]:+.5f}   "
+    f"error {energy[best] - E0:.2e}   (step {best}: the answer to keep)"
+)
+print("   the residual is measurable, so the guard works on hardware too;")
+print("   guarded.theta[best] holds the parameters of that state.")

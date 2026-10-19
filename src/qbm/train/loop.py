@@ -69,12 +69,18 @@ def fit(
         measurable ``monitor`` -- e.g. ``lambda s, m: m.kl(q)`` -- becomes the
         training curve you can actually plot on hardware.
     stop : callable(state, model) -> bool, optional
-        Checked each step *before* the update; return ``True`` to halt.  Useful when
-        the state itself is approximate: ground-state training drives the QBM to low
-        effective temperature, where variational Gibbs preparation degrades and can
-        eventually destabilise the very gradient driving it.  Guarding on the
-        preparation error stops before that, e.g.
-        ``stop=lambda s, m: s.varqite_result().residual > 0.05``.
+        Checked each step on the state just built -- after its loss and ``monitor``
+        are recorded, *before* the update; return ``True`` to halt.  The state that
+        trips it is therefore the last entry of the history, and ``model.theta`` is
+        left at its parameters.  Useful when the state itself is approximate:
+        ground-state training drives the QBM to low effective temperature, where
+        variational Gibbs preparation degrades and can eventually destabilise the very
+        gradient driving it.  Guarding on the preparation error, e.g.
+        ``stop=lambda s, m: s.varqite_result().residual > 0.05``, halts the run at
+        that collapse -- a few steps before it, or only once it has happened,
+        depending on floating-point details -- so keep the best state that *passed*:
+        record the guarded quantity as ``monitor`` and choose among the steps where it
+        was below the threshold (``history.theta`` holds every step's parameters).
 
     Returns
     -------

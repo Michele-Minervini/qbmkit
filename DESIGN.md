@@ -529,7 +529,13 @@ gradient is `<G_j>_data - <G_j>_model`; its relative-entropy value needs `log Z`
 `monitor` instead. The second lesson is that an approximate state feeds back into its
 own optimisation: ground-state objectives drive `beta -> infinity`, degrading the
 preparation until the gradient it produces destabilises the run. The McLachlan residual
-crosses ~0.1 *before* the energy turns, so `stop=` on it is a working guard.
+climbs with that degradation and jumps when the run collapses, so `stop=` on it halts the
+run. It is not a reliable *early* warning, though, and this note used to say it was. On
+the developer's machine a threshold of 0.05 is crossed four steps before the collapse,
+and 0.1 on the collapsing step; on Python 3.13 CI the same run crosses 0.05 only once it
+has collapsed, with the energy already off by 1.0. So the state a guard flags is never
+the answer: the best state that passed it is. `fit`'s docstring, example 08, notebook 12
+and `test_ground_state_training_is_guarded_by_the_residual` all say so (v0.13).
 
 **Preparation note (v0.10).** The circuit backend now has two Gibbs-preparation
 strategies and they answer different questions. `"exact"` synthesises the TFD

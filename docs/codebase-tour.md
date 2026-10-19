@@ -254,7 +254,9 @@ tensor and `C = −½∇⟨H⟩` — i.e. **quantum natural gradient flow**.
 `Z → Y⊗X`, then that the Hadamard-test route reproduces the exact route to ~1e-15.
 
 **Questions.** Why does the ansatz branch on *commutation*? Why is the McLachlan residual
-measurable when fidelity is not — and why does it cross 0.1 *before* the energy diverges?
+measurable when fidelity is not? In notebook 12 it creeps up for tens of steps before a
+ground-state run collapses, then jumps with it: why does it rise while the energy still
+looks converged, and why is the state a residual guard flags never the one to keep?
 
 ---
 

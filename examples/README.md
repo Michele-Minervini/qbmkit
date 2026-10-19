@@ -12,7 +12,7 @@ Run any of them with `python examples/<file>.py` (from the repo root, in the ven
 | 05 | [`05_semidefinite_program.py`](05_semidefinite_program.py) | Solve an SDP through the QBM core (unconstrained + constrained) | strong duality to ~1e-15 |
 | 06 | [`06_tensor_network_scaling.py`](06_tensor_network_scaling.py) | Purified-MPS backend past the dense ceiling, including training there (needs `[tn]`) | matches dense to 1e-6; n=20 state in ~2 s; 16-qubit model trained, parameters recovered to 1e-3 |
 | 07 | [`07_varqite_gibbs_preparation.py`](07_varqite_gibbs_preparation.py) | Variational Gibbs preparation from expectation values only | exact for commuting H; Hadamard route to 1e-15 |
-| 08 | [`08_training_with_varqite.py`](08_training_with_varqite.py) | Full QBM training on variationally prepared states (+ shot noise, + the residual guard) | KL matches exact training to 3e-4 |
+| 08 | [`08_training_with_varqite.py`](08_training_with_varqite.py) | Full QBM training on variationally prepared states (+ shot noise, + the residual guard, keeping the best state that passed) | KL matches exact training to 3e-4; guarded ground state within 1.3e-2 of exact |
 | 09 | [`09_pauli_propagation.py`](09_pauli_propagation.py) | Thermal states as sparse Pauli sums; the locally normalised sampler; generative QBM training in the Pauli basis, including at 16 qubits | KL matches exact training to 4e-5; n=20 state in 0.5 s; 16-qubit couplings recovered to 0.04 at cutoff 1e-3 |
 | 10 | [`10_gibbs_map_hidden_units.py`](10_gibbs_map_hidden_units.py) | Exact hidden-unit gradients on any backend + unbiased sampling (removes the non-commuting CD bias) | gradient exact to 4e-16; sampler TVD 0.003 vs CD 0.26 |
 

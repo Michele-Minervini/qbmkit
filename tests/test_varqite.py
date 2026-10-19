@@ -441,8 +441,8 @@ def test_ground_state_training_is_guarded_by_the_residual():
     # implementations), so pin the mechanism, not a platform-specific number.  That
     # includes the state the run stops on: the collapse takes only a step or two, and
     # whether the residual crosses the threshold just before it (energy still within
-    # 0.02 of the ground state) or on it (energy off by 1.0, as on one CI platform) is
-    # not something to rely on.  What holds everywhere is that the states which passed
+    # 0.02 of the ground state) or only after it (energy off by 1.0, as on one CI
+    # platform) is not something to rely on.  What holds everywhere is that the states which passed
     # the guard had reached the ground state.
     residual, energy = np.array(guarded.monitor), np.array(guarded.loss)
     assert residual[0] < 1e-4  # starts near maximally mixed: trivially prepared
