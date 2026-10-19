@@ -1,6 +1,6 @@
 """Dense NumPy/SciPy backend (the v1 default and exact validation oracle).
 
-The Gibbs state is built by **eigendecomposition** of ``G(theta)`` (not ``expm``):
+The Gibbs state is built by **eigendecomposition** of ``G(theta)``:
 overflow-safe via a ground-energy shift, and one factorization yields rho, log Z,
 the belief-propagation channel, all gradients and all metrics.
 """
