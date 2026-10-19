@@ -51,10 +51,16 @@ class ThermalState(Protocol):
         """Dense ``rho`` (small systems only)."""
 
     def probabilities(self) -> np.ndarray:
-        """Computational-basis probability vector ``diag(rho)``."""
+        """Computational-basis probability vector: the distribution ``sample`` draws from.
+
+        That is ``diag(rho)``.  A backend whose ``rho`` is only approximately a state --
+        a truncated Pauli sum, whose diagonal can go negative -- returns the
+        distribution its sampler actually draws from instead, so this is always a
+        valid distribution.
+        """
 
     def sample(self, n: int, rng=None) -> np.ndarray:
-        """Draw ``n`` computational-basis bitstring indices from ``diag(rho)``."""
+        """Draw ``n`` computational-basis bitstring indices from :meth:`probabilities`."""
 
 
 @runtime_checkable

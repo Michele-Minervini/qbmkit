@@ -1,6 +1,6 @@
 # A guided tour of the qbmkit codebase
 
-A structured, 24-week reading path through all 6,976 lines of `src/qbm`, in dependency
+A structured, 24-week reading path through all 7,030 lines of `src/qbm`, in dependency
 order: nothing is read before the thing it rests on. It exists so that a maintainer — or
 a contributor who wants real ownership of a subsystem — can work through the library
 deliberately rather than by grep.
@@ -78,7 +78,7 @@ handles `Δ → 0` without dividing by zero.
 **Questions.** Why does `K[k,k] = -p_k` rather than the naive limit? Where does
 `Tr(∂ⱼρ) = 0` come from, and does the code satisfy it exactly or approximately?
 
-### Week 3 — The reference engine: `backends/base.py` (64) + `backends/dense.py` (155)
+### Week 3 — The reference engine: `backends/base.py` (70) + `backends/dense.py` (155)
 **Claim.** One `eigh(G)` yields ρ, ln ρ, √ρ, log Z, Φ, every gradient and every metric —
 and never overflows.
 
@@ -129,7 +129,7 @@ loss read `ham.generators`?
 **Questions.** Why does `MarginalNLL.grad` need `diagonal_gradient`, and what does that
 cost you on the scalable backends? (Week 15 is the answer.)
 
-### Week 7 — Optimisation: `optim/` (116) + `train/loop.py` (103)
+### Week 7 — Optimisation: `optim/` (116) + `train/loop.py` (109)
 **Claim.** Geometry-aware and plain optimisers share one loop because the optimiser
 receives the *state*, not just the gradient.
 
@@ -173,7 +173,7 @@ reach, and the (θ,φ) QFI is block-structured. (arXiv:2501.03367 — your own p
 **Questions.** Why does `∂exp(-iH)` need the Daleckii–Krein kernel rather than a naive
 product rule?
 
-### Week 11 — The public surface: `tasks/` (397) + `facade.py` (137) + `registry.py` (140)
+### Week 11 — The public surface: `tasks/` (397) + `facade.py` (142) + `registry.py` (140)
 **Claim.** Every research question is one call, and every default is overridable.
 
 **Questions.** How does the registry avoid importing JAX at `import qbm` time — and which
@@ -262,7 +262,7 @@ looks converged, and why is the state a residual guard flags never the one to ke
 
 ## Phase 6 · Pauli propagation and closing (weeks 20–24)
 
-### Week 20 — `pauli_prop.py` (406) part 1: the algebra and the imaginary-time evolution
+### Week 20 — `pauli_prop.py` (435) part 1: the algebra and the imaginary-time evolution
 **Claim.** A Pauli string is a signed permutation `(x,z)`; the imaginary-time gate
 branches only on **commutation**, `P → cosh(2θ)P − sinh(2θ)PG`.
 
@@ -281,17 +281,20 @@ truncation is not free: at the same cutoff it keeps fewer strings and is less ac
 Explain why, starting from the size at which a gate brings a new string in,
 `tanh(|θ_k|/L)`, and say what must happen to the cutoff when you double `L`.
 
-### Week 21 — `pauli_prop.py` part 2: `PauliSum` and its sampler + `backends/pauli_propagation.py` (209)
+### Week 21 — `pauli_prop.py` part 2: `PauliSum` and its sampler + `backends/pauli_propagation.py` (217)
 **Claim.** Truncation can push ρ out of the PSD cone; the locally normalised chain rule
 still yields a valid distribution, with exact pointwise likelihoods.
 
 **Questions.** Why do only diagonal strings contribute to a Z-basis marginal? Why is
-coefficient truncation more effective than weight truncation on dense Hamiltonians?
+coefficient truncation more effective than weight truncation on dense Hamiltonians? A
+Pauli-propagation state's `probabilities()` is the sampler's distribution, not `diag(ρ)`:
+when do the two differ, and why does `sampler_probabilities` get every outcome at once
+for the cost of the diagonal itself, where `log_likelihood` pays per bitstring?
 
 ### Week 22 — Adapters and periphery: `circuits/adapters/` (259) + `diagnostics.py` (68) + `data/` (135)
 **Questions.** If Qiskit 3.0 breaks tomorrow, exactly which files change?
 
-### Week 23 — The test suite: `tests/` (~4,000)
+### Week 23 — The test suite: `tests/` (~4,100)
 Read the tests as *specification*. For each of the seven tiers, find one test you could
 break with a plausible bug — and one you could not.
 

@@ -36,8 +36,10 @@ def _as_distribution(data) -> np.ndarray:
 def _kl_monitor(q: np.ndarray):
     """Monitor recording ``D(q || p_model)`` from the state the step already built.
 
-    Goes quiet -- rather than failing the run -- on a backend that cannot return the
-    full distribution at this size.
+    ``p_model`` is ``state.probabilities()``: the distribution the model generates,
+    which for a truncated Pauli-propagation state is its sampler's rather than the
+    (possibly negative) diagonal of ``rho``.  Goes quiet -- rather than failing the run
+    -- on a backend that cannot return the full distribution at this size.
     """
     support = q > 0
     entropy_term = float(np.sum(q[support] * np.log(q[support])))
@@ -95,10 +97,13 @@ def learn(
         Recorded into ``model.history.monitor`` each step.  ``"auto"`` tracks the
         measured KL divergence ``D(q || p_model)`` -- the training curve that stays
         available on a measurement backend, where the relative-entropy *value* (which
-        needs ``log Z``) does not.  A backend that cannot return the whole distribution
-        at this size (a tensor network beyond ~14 qubits) records nothing;
-        ``model.history.grad_norm`` -- the mismatch between data and model moments --
-        is the curve that is always there.
+        needs ``log Z``) does not.  ``p_model`` is the distribution the model actually
+        generates: on ``"pauli_propagation"`` that is the locally normalised sampler's,
+        which stays a distribution when truncation pushes the diagonal of ``rho``
+        negative, so the curve is a genuine divergence at any truncation level.  A
+        backend that cannot return the whole distribution at this size (a tensor network
+        beyond ~14 qubits) records nothing; ``model.history.grad_norm`` -- the mismatch
+        between data and model moments -- is the curve that is always there.
 
     Notes
     -----

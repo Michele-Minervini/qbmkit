@@ -48,7 +48,7 @@ for cutoff in (1e-1, 1e-3, 1e-6):
 # --- 3. the locally normalised sampler (valid samples from a truncated state) --
 print("\nsampling with Algorithm 1 (exact likelihoods, sign-problem-safe):")
 st = PauliPropagationBackend(trotter_steps=64, coeff_cutoff=1e-8, seed=0).thermal_state(ham, theta)
-exact_diag = st.probabilities()
+exact_diag = st.pauli_sum().probabilities()  # the diagonal of rho itself
 emp = np.bincount(st.sample(50000), minlength=16) / 50000
 print(
     f"   TVD(sampler, exact diagonal) = {0.5 * np.sum(np.abs(emp - exact_diag)):.3e}  (50k shots)"

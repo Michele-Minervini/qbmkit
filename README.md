@@ -101,7 +101,7 @@ For development, in a virtual environment:
 git clone https://github.com/Michele-Minervini/qbmkit && cd qbmkit
 python3 -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"          # + pytest, ruff, matplotlib, nbclient
-pytest                           # 418 tests
+pytest                           # 423 tests
 ```
 
 > Notes
@@ -318,7 +318,10 @@ slightly negative. The **locally normalised sampler** of *Sampling from Thermal 
 States via Pauli Propagation* fixes this: it draws bits sequentially from absolute
 quasi-marginals, a valid distribution within a certified total-variation distance of the
 true Born distribution, and yields **exact pointwise likelihoods** — a pairing generative
-models rarely offer. A QBM trains through the unchanged `qbm.learn` API and matches exact
+models rarely offer. Its distribution is what a Pauli-propagation state reports as
+`probabilities()`, so `model.kl` and the KL curve of `qbm.learn` are genuine divergences
+at any truncation; the raw diagonal is `state.pauli_sum().probabilities()`. A QBM trains
+through the unchanged `qbm.learn` API and matches exact
 training (KL to ~4e-5). Same honest scope as the other expectation-based backends: metrics,
 the energy gradient, `log Z` and the entropy raise a clear error. Pure NumPy, no
 dependency. See [notebook 13](notebooks/13_pauli_propagation_qbm.ipynb); the
@@ -435,7 +438,7 @@ energy / marginal-NLL / sqRBM-NLL / free-energy / quantum-target-relative-entrop
 SDP-dual losses, plus autodiff of arbitrary density-matrix objectives; GD / Adam /
 quantum natural gradient; **arbitrary QFI metrics** (the α-z family plus user kernels,
 with Kubo–Mori / Fisher–Bures / Wigner–Yanase as special cases);
-barren-plateau diagnostics. **418 tests** across seven tiers — exact oracles, finite
+barren-plateau diagnostics. **423 tests** across seven tiers — exact oracles, finite
 differences, autodiff (~1e-15), cross-backend agreement, strong duality/KKT with an
 independent reference SDP solver, **four paper reproductions**
 ([`tests/reproductions/`](tests/reproductions)), Hypothesis property-based tests, and

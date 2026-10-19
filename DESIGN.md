@@ -503,6 +503,22 @@ distribution it actually samples from, through the sampler's exact likelihoods, 
 a divergence at any truncation level and coincides with the diagonal one whenever the
 state is positive.
 
+**Distribution note (v0.13).** That raised a question the library had left open: if a
+truncated Pauli sum's diagonal is not a distribution, which distribution does the model
+have? It is the one its locally normalised sampler draws from, and
+`PauliPropThermalState.probabilities()` now returns it — computed for all `2^n`
+outcomes at once from the prefix quasi-marginals, in `O(n 2^n)` like the diagonal
+itself, and equal to `diag(rho)` whenever that is non-negative. It is what `sample()`
+draws and what `log_likelihood()` scores, so the state is consistent with itself; before,
+`probabilities()` was the diagonal while `sample()` drew from the sampler. Everything
+built on `probabilities()` — `Model.kl`, the KL monitor of `qbm.learn`, hidden-unit
+marginals — is therefore a genuine divergence or distribution at any truncation. On the
+5-qubit run at cutoff `1e-2` the monitor had read a clipped diagonal and reported 10 to
+35 where the model's divergence was 0.2 to 0.5. The raw quasi-diagonal remains
+`pauli_sum().probabilities()`, and the `ThermalState` protocol now defines
+`probabilities()` as the distribution `sample()` draws from, which is `diag(rho)` for
+every other backend.
+
 **Hidden-unit note (v0.12).** Before this, `MarginalNLL` was the only exact route and it
 needs `d_j rho` (`diagonal_gradient`), which capped hidden units at the dense ceiling —
 the tensor-network backend did not even refuse it cleanly (bare `AttributeError`, now a

@@ -93,7 +93,15 @@ class PauliPropThermalState:
         return self.pauli_sum().to_matrix()
 
     def probabilities(self) -> np.ndarray:
-        return self.pauli_sum().probabilities()
+        """The computational-basis distribution this state generates: its sampler's.
+
+        Equal to ``diag(rho)`` whenever that is non-negative.  Truncation can push
+        ``rho`` out of the positive cone, and its diagonal is then not a distribution
+        (a KL divergence read off it is meaningless); the locally normalised sampler's
+        always is, and it is what :meth:`sample` draws from and :meth:`log_likelihood`
+        scores.  The raw quasi-diagonal is ``pauli_sum().probabilities()``.
+        """
+        return self.pauli_sum().sampler_probabilities()
 
     def sample(self, n: int, rng=None) -> np.ndarray:
         return self.pauli_sum().sample(n, rng=self.rng if rng is None else rng)

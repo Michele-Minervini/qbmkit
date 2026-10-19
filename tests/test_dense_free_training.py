@@ -266,6 +266,37 @@ def test_monitor_goes_quiet_when_the_distribution_is_unavailable():
     assert model.history.grad_norm[-1] < model.history.grad_norm[0]  # training went on
 
 
+def test_kl_monitor_is_a_divergence_on_a_non_positive_state():
+    # Hard truncation pushes the diagonal of rho negative.  The monitor used to read the
+    # KL off that diagonal after clipping it, and one negative entry made it a number in
+    # the tens.  It now scores the distribution the model samples from.
+    target = qbm.FullyVisibleQBM(n=5, connectivity="all")
+    target.theta = np.random.default_rng(11).normal(scale=0.7, size=target.n_params)
+    q = target.probabilities()
+    backend = qbm.get_backend("pauli_propagation", trotter_steps=24, coeff_cutoff=1e-2, seed=0)
+    model = qbm.learn(
+        q,
+        steps=12,
+        connectivity="all",
+        optimizer=qbm.optim.GradientDescent(lr=0.1, clip=1.0),
+        backend=backend,
+    )
+    outcomes = np.arange(32)
+    clipped_diagonal = []
+    for theta, kl in zip(model.history.theta, model.history.monitor):
+        state = backend.thermal_state(model.ham, theta)
+        sampled = float(np.sum(q * (np.log(q) - state.log_likelihood(outcomes))))
+        assert np.isclose(kl, sampled, atol=1e-10)
+        diagonal = np.clip(state.pauli_sum().probabilities(), 1e-300, None)
+        clipped_diagonal.append(float(np.sum(q * (np.log(q) - np.log(diagonal)))))
+    assert max(clipped_diagonal) > 10  # the old reading: 35 at its worst on this run
+    assert 0 <= min(model.history.monitor) and max(model.history.monitor) < 1.1  # KL(q||uniform)
+    # model.kl reads the same distribution
+    final = backend.thermal_state(model.ham, model.theta)
+    expected = float(np.sum(q * (np.log(q) - final.log_likelihood(outcomes))))
+    assert np.isclose(model.kl(q), expected, atol=1e-10)
+
+
 def test_tensor_network_distribution_is_refused_beyond_small_sizes():
     pytest.importorskip("quimb")
     ham = ParamHamiltonian(pauli_pool(15, terms=("Z",)))

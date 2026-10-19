@@ -194,6 +194,35 @@ class PauliSum:
         spectrum[zs] = cs
         return _walsh_hadamard(spectrum)
 
+    def sampler_probabilities(self) -> np.ndarray:
+        """The distribution :meth:`sample` draws from, over all ``2^n`` outcomes.
+
+        Bit ``j`` is drawn with probability ``|m(prefix, b)| / (|m(prefix, 0)| +
+        |m(prefix, 1)|)``, where ``m`` is the quasi-marginal of a prefix -- the sum of the
+        diagonal over every completion of it -- so ``p_hat(x)`` is the product of those
+        conditionals, exactly as :meth:`log_likelihood` scores it.  It is a valid
+        distribution even when the diagonal is not, and equal to :meth:`probabilities`
+        whenever that is non-negative (every quasi-marginal is then non-negative too).
+
+        All prefixes are handled at once from the diagonal, so this costs ``O(n 2^n)``
+        like :meth:`probabilities` itself, rather than a pass over the terms per
+        bitstring and qubit.
+        """
+        n = self.n_qubits
+        # marginals[k] holds the quasi-marginal of every prefix of length n - k
+        marginals = [self.probabilities()]
+        for _ in range(n):
+            marginals.append(marginals[-1].reshape(-1, 2).sum(axis=1))
+        p_hat = np.ones(1)
+        for j in range(n):  # bit j, given each prefix of length j
+            branches = np.abs(marginals[n - j - 1]).reshape(-1, 2)
+            total = branches.sum(axis=1, keepdims=True)
+            conditional = np.divide(
+                branches, total, out=np.full_like(branches, 0.5), where=total > 0
+            )
+            p_hat = (p_hat[:, None] * conditional).reshape(-1)
+        return p_hat
+
     def sample(self, n_samples: int, rng=None) -> np.ndarray:
         """Draw computational-basis bitstrings with the locally normalised sampler.
 

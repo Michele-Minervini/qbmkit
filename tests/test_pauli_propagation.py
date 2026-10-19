@@ -284,6 +284,61 @@ def test_peak_terms_is_reported_and_survives_a_copy():
 
 
 # ---------------------------------------------------------------------------
+# the distribution a truncated state generates
+# ---------------------------------------------------------------------------
+def _non_positive_state():
+    labels = pauli_pool(5, terms=("Z", "X", "ZZ"))
+    theta = np.random.default_rng(1).normal(scale=0.6, size=len(labels))
+    ps = pp.thermal_state(labels, theta, trotter_steps=12, coeff_cutoff=3e-2)
+    assert ps.probabilities().min() < 0  # truncation has pushed rho out of the positive cone
+    return ParamHamiltonian(labels), theta, ps
+
+
+def test_sampler_distribution_is_the_chain_rule_the_sampler_uses():
+    _, _, ps = _non_positive_state()
+    p_hat = ps.sampler_probabilities()
+    assert np.all(p_hat >= 0) and np.isclose(p_hat.sum(), 1.0, atol=1e-12)
+    assert np.allclose(p_hat, np.exp(ps.log_likelihood(np.arange(32))), atol=1e-14)
+    draws = ps.sample(30_000, rng=np.random.default_rng(0))  # the per-bit sampler is slow
+    empirical = np.bincount(draws, minlength=32) / draws.size
+    assert 0.5 * np.abs(empirical - p_hat).sum() < 0.02  # finite-sample floor ~0.01
+    assert 0.5 * np.abs(ps.probabilities() - p_hat).sum() > 0.05  # ...and it is not the diagonal
+
+
+def test_sampler_distribution_is_the_diagonal_when_that_is_a_distribution():
+    labels = pauli_pool(4, terms=("Z", "X", "ZZ"))
+    theta = np.random.default_rng(2).normal(scale=0.6, size=len(labels))
+    ps = pp.thermal_state(labels, theta, trotter_steps=16, coeff_cutoff=0.0)
+    assert ps.probabilities().min() > 0
+    assert np.allclose(ps.sampler_probabilities(), ps.probabilities(), atol=1e-14)
+
+
+def test_a_state_reports_the_distribution_it_samples_from():
+    # The backend's probabilities() are the sampler's, so everything built on them --
+    # model.kl, the KL monitor of qbm.learn, hidden-unit marginals -- sees a distribution.
+    # The diagonal of rho stays one call away, on the Pauli sum.
+    ham, theta, ps = _non_positive_state()
+    state = PauliPropagationBackend(trotter_steps=12, coeff_cutoff=3e-2).thermal_state(ham, theta)
+    assert np.allclose(state.probabilities(), ps.sampler_probabilities(), atol=1e-15)
+    assert np.allclose(state.pauli_sum().probabilities(), ps.probabilities(), atol=1e-15)
+    assert np.allclose(np.exp(state.log_likelihood(np.arange(32))), state.probabilities())
+
+
+def test_hidden_unit_marginal_is_a_distribution_under_truncation():
+    backend = PauliPropagationBackend(trotter_steps=12, coeff_cutoff=3e-2, seed=0)
+    model = qbm.VisibleHiddenQBM(n_visible=3, n_hidden=2, backend=backend)
+    model.theta = np.random.default_rng(4).normal(scale=0.8, size=model.n_params)
+    state = model.state()
+    diagonal_marginal = state.pauli_sum().probabilities().reshape(8, 4).sum(axis=1)
+    assert diagonal_marginal.min() < 0  # what the visible marginal used to be
+    p_visible = model.visible_probabilities()
+    assert p_visible.min() >= 0 and np.isclose(p_visible.sum(), 1.0)
+    draws = state.sample(20_000, rng=np.random.default_rng(1)) >> 2  # keep the visible bits
+    empirical = np.bincount(draws, minlength=8) / draws.size
+    assert 0.5 * np.abs(empirical - p_visible).sum() < 0.02
+
+
+# ---------------------------------------------------------------------------
 # the backend and end-to-end training
 # ---------------------------------------------------------------------------
 def test_backend_is_registered_and_needs_no_sdk():
